@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+  <script src="auth.js"></script>
+  <script src="theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مۆڵەتی کارمەندان - هوتێل جیلا</title>
+
+  <!-- ١. Favicon (لۆگۆی تاب) -->
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- فونتی Vazirmatn -->
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Vazirmatn', sans-serif; }
+    
+    /* ستایلی باکگراوەندی سەرەکی (Background Style) */
+    .dashboard-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+    }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #cvModal, #cvModal * { visibility: visible !important; }
+      #cvModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+      #cvPrintArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="dashboard-bg min-h-screen p-3 md:p-6 select-none text-slate-100 flex flex-col items-center justify-between gap-6">
+
+  <!-- ٣. FULL SCREEN LOADING OVERLAY (کۆدی لۆدینگ) -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+  </div>
+
+  <!-- ٤. CUSTOM DELETE CONFIRMATION MODAL (جۆری پشاندانی نامەی سڕینەوە) -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+      <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+        ⚠️
+      </div>
+      <div class="space-y-1">
+        <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+        <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سڕینەوەی ئەو  مۆڵەتە؟</p>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition cursor-pointer">پەشیمانبوونەوە</button>
+        <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition cursor-pointer">بەڵێ، بسڕەوە</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="w-full max-w-7xl mx-auto flex flex-col gap-4 flex-grow">
+    <!-- Header Section -->
+    <div class="max-w-7xl mx-auto flex justify-between items-center mb-3 no-print">
+    <div class="flex items-center gap-3 bg-white/95 px-4 py-1.5 rounded-lg shadow-md border border-gray-200">
+      <img id="hotelLogo" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="لۆگۆی هوتێل" class="h-8 w-auto object-contain">
+      <h1 class="text-black font-black text-xs hidden sm:block">هوتێل جیلا - Jilla Hotel</h1>
+    </div>
+    <a href="main.html" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-3 py-1.5 rounded shadow-md border border-gray-600 no-underline">
+      گەڕانەوە
+    </a>
+  </div>
+
+    <!-- Top Action Bar & Filters -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-3 text-slate-800 no-print">
+      <h2 class="text-base font-extrabold text-blue-900 whitespace-nowrap">لیست و تۆماری مۆڵەتی کارمەندان</h2>
+      
+      <!-- Filters -->
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <input type="text" id="searchEmp" oninput="filterTable()" placeholder="گەڕان بە ناوی کارمەند..." class="bg-gray-50 border border-gray-300 rounded-md px-2 py-1 text-xs w-full md:w-44">
+        <select id="filterStatus" onchange="filterTable()" class="bg-gray-50 border border-gray-300 rounded-md px-2 py-1 text-xs w-full md:w-44">
+          <option value="">هەموو دۆخەکان</option>
+          <option value="بەردەوامە">بەردەوامە</option>
+          <option value="ئەوڕۆ تەواو دەبێت">ئەوڕۆ تەواو دەبێت</option>
+          <option value="بەسەرچووە">بەسەرچووە</option>
+          <option value="دواتر دەست پێدەکا">دواتر دەست پێدەکا</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+        <button type="button" onclick="openIjazaModal()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1 justify-center text-xs cursor-pointer">
+          <span>+ تۆمارکردنی مۆڵەتی نوێ</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-4 shadow-2xl border border-gray-200 overflow-hidden text-slate-800">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse text-xs">
+          <thead>
+            <tr class="bg-blue-900 text-white">
+              <th class="p-2 border text-center"></th>
+              <th class="p-2 border">ناوی کارمەند</th>
+              <th class="p-2 border">پۆزشن</th>
+              <th class="p-2 border">دەست پێک</th>
+              <th class="p-2 border">تەواو بوون</th>
+              <th class="p-2 border text-center">ماوە</th>
+              <th class="p-2 border text-center">دۆخی مۆڵەت</th>
+            </tr>
+          </thead>
+          <tbody id="ijazaTableBody">
+            <tr><td colspan="7" class="text-center p-4 text-gray-500">چاوەڕێبە، داتا دەهێنرێ...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- IJAZA MODAL -->
+  <div id="ijazaModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-50">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-5 max-w-2xl w-full max-h-[95vh] overflow-y-auto shadow-2xl space-y-3">
+      
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 id="modalTitle" class="text-base font-bold text-blue-900">تۆمارکردنی مۆڵەتی کارمەند</h3>
+        <button type="button" onclick="closeIjazaModal()" class="text-gray-500 hover:text-red-600 font-bold text-base cursor-pointer">✕</button>
+      </div>
+      
+      <form id="ijazaForm" onsubmit="saveIjaza(event)" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <input type="hidden" id="editIjazaId">
+        <input type="hidden" id="ijaza_barwar">
+        <input type="hidden" id="ijaza_barwar_rozhi">
+
+        <!-- ناوی کارمەند و پۆزشن لە تەنیشت یەک -->
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">ناوی کارمەند *</label>
+          <select id="ijaza_nawi_farmanbar" required onchange="onEmployeeSelect()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1.5">
+            <option value="">کارمەند هەڵبژێرە...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">پۆزشن (وەزیفە)</label>
+          <input type="text" id="ijaza_wazifa" readonly class="w-full bg-gray-100 border border-gray-300 rounded-md p-1.5 font-bold text-indigo-900">
+        </div>
+
+        <!-- بەرواری دەستپێک و ڕۆژەکەی -->
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">بەرواری دەستپێک *</label>
+          <div class="flex gap-1">
+            <input type="date" id="ijaza_barwar_dastpek_picker" required onchange="syncDateInput('ijaza_barwar_dastpek_picker', 'ijaza_barwar_dastpek', 'ijaza_rozhi_dastpek')" class="w-2/3 bg-gray-50 border border-gray-300 rounded-md p-1 font-mono">
+            <input type="hidden" id="ijaza_barwar_dastpek">
+            <input type="text" id="ijaza_rozhi_dastpek" readonly placeholder="ڕۆژ..." class="w-1/3 bg-gray-100 border border-gray-300 rounded-md p-1 font-bold text-emerald-800 text-center">
+          </div>
+        </div>
+
+        <!-- بەرواری تەواوبوون و ڕۆژەکەی -->
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">بەرواری تەواوبوون *</label>
+          <div class="flex gap-1">
+            <input type="date" id="ijaza_barwar_tawawbun_picker" required onchange="syncDateInput('ijaza_barwar_tawawbun_picker', 'ijaza_barwar_tawawbun', 'ijaza_rozhi_tawawbun')" class="w-2/3 bg-gray-50 border border-gray-300 rounded-md p-1 font-mono">
+            <input type="hidden" id="ijaza_barwar_tawawbun">
+            <input type="text" id="ijaza_rozhi_tawawbun" readonly placeholder="ڕۆژ..." class="w-1/3 bg-gray-100 border border-gray-300 rounded-md p-1 font-bold text-amber-800 text-center">
+          </div>
+        </div>
+
+        <!-- ماوەی مۆڵەت بە درێژی لە ژێر ئەوان -->
+        <div class="md:col-span-2">
+          <label class="block font-bold text-gray-700 mb-1">ماوەی مۆڵەت (بە ڕۆژ)</label>
+          <input type="text" id="ijaza_mawaka" readonly placeholder="تۆماتیک دیاری دەکا" class="w-full bg-gray-100 border border-gray-300 rounded-md p-1.5 font-bold font-mono text-green-700">
+        </div>
+
+        <!-- مەبەست -->
+        <div class="md:col-span-2">
+          <label class="block font-bold text-gray-700 mb-1">مەبەستی مۆڵەت</label>
+          <textarea id="ijaza_mabast" rows="2" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1.5"></textarea>
+        </div>
+
+        <!-- سزای ماوەی دواکەوتن -->
+        <div class="md:col-span-2">
+          <label class="block font-bold text-gray-700 mb-1">سزا دوای چەند ڕۆژ ....</label>
+          <input type="text" id="ijaza_sza_maway_rozh" placeholder="نمونە دوای ٢ ڕۆژ نەگەڕێتەوە سزا دەدرێ" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1.5">
+        </div>
+
+        <!-- Form Actions -->
+        <div class="md:col-span-2 flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="closeIjazaModal()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md cursor-pointer">داخستن</button>
+          <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-1.5 rounded-md font-bold cursor-pointer">خەزن کردن</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- CV / Custom Professional Receipt Modal (A4 Single Leave Report) -->
+  <div id="cvModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col text-slate-900">
+      
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">ڕاپۆرتی مۆڵەت</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition cursor-pointer">پرێنت </button>
+          <button onclick="closeCVModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition cursor-pointer">داخستن</button>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex justify-center">
+        <div id="cvPrintArea" class="bg-white text-black shadow relative" dir="rtl" style="width: 190mm; min-height: 270mm; padding: 0; display: flex; flex-direction: column; justify-content: space-between;">
+          
+          <div>
+            <!-- Custom Designed Professional Header with White Logo from GitHub -->
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px 24px; position: relative; border-bottom: 4px solid #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background-color: #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+              
+              <div class="flex justify-between items-center">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-black tracking-wide" style="color: #ffffff;">هوتێل جیلا</h1>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-base font-bold text-amber-400" dir="ltr">JILLA HOTEL</h2>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-sm font-bold text-gray-200">فندق جيلا</h2>
+                  </div>
+                  <p class="text-xs text-gray-300 font-medium">هەولێر - شەقامی ٦٠م - بەرامبەر نەخۆشخانەی بار</p>
+                  <div class="flex items-center gap-4 text-xs font-mono pt-1 text-amber-300" dir="ltr">
+                    <span>📞 0750 941 5656</span>
+                    <span>📞 0770 941 5656</span>
+                  </div>
+                </div>
+
+                <!-- Larger White Logo Box with GitHub Raw Link -->
+                <div class="flex flex-col items-center justify-center bg-white/10 p-2 rounded-lg border border-white/25 backdrop-blur w-28 h-20">
+                  <img id="cvLogoImg" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_white.png" crossorigin="anonymous" alt="لۆگۆ" class="max-h-16 w-auto object-contain">
+                </div>
+              </div>
+            </div>
+
+            <!-- Title Bar -->
+            <div style="background-color: #f1f5f9; padding: 16px 20px; border-bottom: 2px solid #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div class="text-right">
+                <h2 class="text-sm font-black text-slate-900">ڕاپۆرتی کارگێڕی هوتێل تایبەت بە مۆڵەت و ئاگادارکردنەوە</h2>
+              </div>
+              <div style="margin-top: 0.5cm;" class="text-center">
+                <p class="text-xs font-bold text-blue-900">بەڵێننامەی مۆڵەتوەرگرتنی کارمەند / <span id="cvEmpNameTitle">...</span></p>
+              </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="p-6 space-y-4">
+              
+              <!-- Employee Info Table -->
+              <div class="border-2 border-black rounded-lg overflow-hidden bg-white">
+                <table class="w-full text-right border-collapse text-xs">
+                  <tbody>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black w-1/3 bg-gray-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">کارمەند</td>
+                      <td class="p-2.5 font-bold text-slate-900"><span id="cvEmpName">--</span></td>
+                    </tr>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black bg-gray-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">ناونیشانی وەزیفی (پۆزشن)</td>
+                      <td class="p-2.5 text-blue-900 font-bold"><span id="cvEmpWazifa">--</span></td>
+                    </tr>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black bg-gray-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">ڕێککەوتی دەستپێکردنی مۆڵەت</td>
+                      <td class="p-2.5 font-mono font-bold"><span id="cvDastpek">--</span> (<span id="cvRozhDastpek">--</span>)</td>
+                    </tr>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black bg-gray-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">ڕێککەوتی کۆتاییهاتنی مۆڵەت</td>
+                      <td class="p-2.5 font-mono font-bold"><span id="cvTawawbun">--</span> (<span id="cvRozhTawawbun">--</span>)</td>
+                    </tr>
+                    <tr class="border-b border-black bg-blue-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                      <td class="p-2.5 font-bold text-blue-900 border-l border-black">ماوەی مۆڵەت</td>
+                      <td class="p-2.5 font-mono font-bold text-blue-800"><span id="cvMawaka">--</span></td>
+                    </tr>
+                    <tr>
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black bg-gray-50" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">بە مەبەستی</td>
+                      <td class="p-2.5"><span id="cvMabast">--</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Report Body Content -->
+              <div class="text-[11px] leading-relaxed space-y-2 text-justify bg-gray-50 p-4 border border-gray-300 rounded-lg" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <p>
+                  من کە ناوم لە سەرەوە هاتووە وەك کارمەند لە هوتێل جیلا، ئاماژە بە مۆڵەتەکەی کە پێم بەخشراوە بۆ ماوەی (<span id="cvMawakaTxt">--</span>) ڕۆژ، کە دەستپێدەکات لە ڕێککەوتی [<span id="cvDastpekTxt">--</span>] تاوەکو ڕێککەوتی [<span id="cvTawawbunTxt">--</span>] ، بە پەڕی ڕەزامەندی و هوشیارییەوە بەڵێن دەدەم و واژۆ لە سەر ئەم خاڵانەی خوارەوە دەکەم:
+                </p>
+
+                <div class="font-bold text-blue-900 pt-1">1. گەڕانەوە لە کاتی دیاریکراودا</div>
+                <p>بەڵێن دەدەم کە لە کات و ڕێککەوتی دیاریکراودا بگەرێمەوە سەر کارەکەم و دەستبەکارمەوە. لە حاڵەتی دواکەوتن بەبێ هۆکارێکی ياسایی و پێشوەختە ئاگادارکردنەوەی بەڕێوەبەرایەتی، ئیدارەی هوتێل مافی تەواوی هەیە رێکاری یاسایی و کارگێڕیم بەرامبەر بگرێتەبەر (وەک بڕینی مووچە یان سەرپێچی کارگێڕی).</p>
+
+                <div class="font-bold text-blue-900 pt-1">2. دەرهنجامی نەگەڕانەوە و وازلێهێنان لە کار</div>
+                <p>تێدەگەم و ڕازیم کە ئەگەر دوای تەواوبوونی ماوەی مۆڵەتەکەم بۆ ماوەی (<span id="cvSzaRozh">٢</span>) ڕۆژی یەک بە دوای یەک نەگەڕێمەوە سەر کار و پەیوەندی نەکەم، ئەوە وەکو وازهێنانی کۆتایی و یەک لایەنە لە کارەکەم ئەژمار دەکرێت، و هوتێل مافی هەیە کە کەسی تر لە شوێنم دابمەزرینێت و سەرجەم مافە داراییەکانم دەفەوتێن.</p>
+
+                <div class="font-bold text-blue-900 pt-1">3. بڕین و نەژماردنی شایستە داراییەکان</div>
+                <p>ئەم مۆڵەتە بەپێی یاسا و ڕێساکانی ناوخۆی هوتێلە کە ئەژمار دەکرێت، ڕەزامەندەم لەسەر بڕینی مووچە بۆ ئەو ماوەیە کە دیاری کراوە بەبێ هیچ ناڕەزایەتییەک.</p>
+
+                <div class="font-bold text-blue-900 pt-1">4. بەرپرسیارەتی یاسایی و مەدەنی لە ماوەی مۆڵەتەکەدا</div>
+                <p>کارمەند بەم بەڵێننامەیە دانی پێدا دەنێت و ڕازییە کە لە خولەکی دەستپێکردنی مۆڵەتەکەیەوە تا کۆتایی هوتێلەکە (ئیدارە، خاوەنکار، و بەڕێوەبەرایەتی) بە هیچ شێوەیەک بەرپرسیار نییە لە رووداوی هەر جۆرە ڕووداوێک (وەک ڕووداوی هاتووچۆ، پێککان، نەخۆشی کتوپڕ، گیانلەدەستدان، یان هەر کێشەیەکی یاسایی، تاوانکاری، و دارایی) کە لە دەرەوەی هوتێل بەسەر کارمەندەکەدا دێت، و کارمەندەکە مافی چوونە دادگا یان داواکردنی هیچ قەرەبووییەکی مادی و مەعنەوییان لە هوتێلەکە ناکات.</p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer Signatures -->
+          <div>
+            <div class="px-8 pb-4 flex justify-between items-end text-xs">
+              <div class="text-center">
+                <p class="font-bold text-slate-900 text-sm mb-0.5"><span id="footerEmpName">--</span></p>
+                <p class="font-bold text-gray-700">واژۆ و پەنجەمۆری کارمەند</p>
+              </div>
+
+              <div class="text-center bg-gray-50 border border-gray-300 px-3 py-1 rounded-md" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <span class="text-[10px] text-gray-500 block">ڕێکەوت:</span>
+                <span id="footerReportDate" class="font-mono font-bold text-slate-800 text-xs">--</span>
+              </div>
+
+              <div class="text-center">
+                <p class="font-bold text-slate-900 text-sm mb-0.5">محمود ابوبکر</p>
+                <p class="font-bold text-gray-700">بەڕێوەبەری گشتی هوتێل جیلا</p>
+              </div>
+            </div>
+            
+            <div style="background-color: #0f172a; height: 16px; width: 100%; position: relative; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="position: absolute; top: 0; right: 0; width: 40%; height: 100%; background-color: #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://jrdakonfokyayzlcqnef.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let employeesList = [];
+    let ijazaData = [];
+    let activeEmpNameForPDF = '';
+    let pendingDeleteId = null;
+
+    // UI Elements for Loading and Confirmation Modal
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      showLoading(true, "چاوەڕێبه، داتا دەهێنرێ...");
+      await loadEmployees();
+      await fetchIjazaData();
+      showLoading(false);
+    });
+
+    function showLoading(show, text = "تکایە چاوەڕێ بە...") {
+      const loadingText = document.getElementById('loadingText');
+      if (loadingText) loadingText.innerText = text;
+      if (show) {
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+      } else {
+        loadingOverlay.classList.add('hidden');
+        loadingOverlay.classList.remove('flex');
+      }
+    }
+
+    confirmCancelBtn.addEventListener('click', () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+      pendingDeleteId = null;
+    });
+
+    confirmOkBtn.addEventListener('click', async () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+
+      if (pendingDeleteId) {
+        showLoading(true, "سڕینەوەی داتا...");
+        const { error } = await supabaseClient.from('tbl_ijaza').delete().eq('ijaza_ID', pendingDeleteId);
+        showLoading(false);
+        
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          fetchIjazaData();
+        }
+        pendingDeleteId = null;
+      }
+    });
+
+    async function loadEmployees() {
+      try {
+        const { data, error } = await supabaseClient.from('2_tbl_emp').select('*');
+        if (data) {
+          employeesList = data;
+          const select = document.getElementById('ijaza_nawi_farmanbar');
+          select.innerHTML = '<option value="">کارمەند هەڵبژێرە...</option>' + data.map(emp => {
+            const name = emp.emp_name || emp.Emp_Name || '';
+            return `<option value="${name}">${name}</option>`;
+          }).join('');
+        }
+      } catch (err) {
+        console.error("Error loading employees:", err);
+      }
+    }
+
+    function onEmployeeSelect() {
+      const selectedName = document.getElementById('ijaza_nawi_farmanbar').value;
+      const wazifaInput = document.getElementById('ijaza_wazifa');
+      const emp = employeesList.find(x => (x.emp_name || x.Emp_Name) === selectedName);
+      if (emp) {
+        wazifaInput.value = emp.emp_pos || emp.Emp_Pos || '';
+      } else {
+        wazifaInput.value = '';
+      }
+    }
+
+    function getKurdishDayName(dateStr) {
+      if (!dateStr || dateStr.length < 10) return '';
+      let parts = dateStr.split('/');
+      if (parts.length !== 3) parts = dateStr.split('-');
+      if (parts.length !== 3) return '';
+
+      let date = new Date(parts[0], parts[1] - 1, parts[2]);
+      if (isNaN(date.getTime())) return '';
+
+      const days = ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چار شەممە', 'پێنجشەممە', 'جومعه', 'شەممە'];
+      return days[date.getDay()];
+    }
+
+    function syncDateInput(pickerId, hiddenId, rozhId) {
+      const pickerVal = document.getElementById(pickerId).value; // yyyy-mm-dd
+      if (!pickerVal) {
+        document.getElementById(hiddenId).value = '';
+        document.getElementById(rozhId).value = '';
+        calculateDuration();
+        return;
+      }
+      let formatted = pickerVal.replace(/-/g, '/'); // yyyy/mm/dd
+      document.getElementById(hiddenId).value = formatted;
+      document.getElementById(rozhId).value = getKurdishDayName(formatted);
+      calculateDuration();
+    }
+
+    function calculateDuration() {
+      const startStr = document.getElementById('ijaza_barwar_dastpek').value;
+      const endStr = document.getElementById('ijaza_barwar_tawawbun').value;
+      const mawakaInput = document.getElementById('ijaza_mawaka');
+
+      if (!startStr || !endStr) {
+        mawakaInput.value = '';
+        return;
+      }
+
+      let p1 = startStr.split(/[\/\-]/);
+      let p2 = endStr.split(/[\/\-]/);
+
+      if (p1.length === 3 && p2.length === 3) {
+        let d1 = new Date(p1[0], p1[1] - 1, p1[2]);
+        let d2 = new Date(p2[0], p2[1] - 1, p2[2]);
+
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          let diffTime = d2 - d1;
+          let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+          mawakaInput.value = diffDays > 0 ? `${diffDays} ڕۆژ` : 'بەرواری هەڵە';
+        }
+      }
+    }
+
+    function getLeaveStatus(startStr, endStr) {
+      if (!startStr || !endStr) return { text: '-', html: '-' };
+
+      let parseDate = (str) => {
+        let p = str.split(/[\/\-]/);
+        if (p.length === 3) return new Date(p[0], p[1] - 1, p[2]);
+        return null;
+      };
+
+      let dStart = parseDate(startStr);
+      let dEnd = parseDate(endStr);
+      let today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (!dStart || !dEnd) return { text: '-', html: '-' };
+
+      dStart.setHours(0, 0, 0, 0);
+      dEnd.setHours(0, 0, 0, 0);
+
+      if (today.getTime() === dEnd.getTime()) {
+        return { text: 'ئەوڕۆ تەواو دەبێت', html: '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">ئەوڕۆ تەواو دەبێت</span>' };
+      } else if (today >= dStart && today <= dEnd) {
+        return { text: 'بەردەوامە', html: '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">بەردەوامە</span>' };
+      } else if (today > dEnd) {
+        let diffTime = today - dEnd;
+        let expiredDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        return { text: 'بەسەرچووە', html: `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">بەسەرچووە (${expiredDays} ڕۆژ پێش ئێستا)</span>` };
+      } else {
+        let diffTime = dStart - today;
+        let futureDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        return { text: 'دواتر دەست پێدەکا', html: `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">دواتر بە ${futureDays} ڕۆژ دەست پێدەکا</span>` };
+      }
+    }
+
+    async function fetchIjazaData() {
+      try {
+        const { data, error } = await supabaseClient.from('tbl_ijaza').select('*');
+        const tbody = document.getElementById('ijazaTableBody');
+        if (error) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-amber-600">کێشە لە هێنانی داتا: ${error.message}</td></tr>`;
+          return;
+        }
+
+        ijazaData = data || [];
+        renderTable(ijazaData);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+      }
+    }
+
+    function renderTable(dataToRender) {
+      const tbody = document.getElementById('ijazaTableBody');
+      if (dataToRender.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-gray-500">هیچ مۆڵەتێک نەدۆزرایەوە.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = dataToRender.map(item => {
+        const id = item.ijaza_ID;
+        const leaveObj = getLeaveStatus(item.ijaza_barwar_dastpek, item.ijaza_barwar_tawawbun);
+        return `
+          <tr class="hover:bg-gray-50 border-b">
+            <td class="p-2 border text-center space-x-1 space-x-reverse">
+              <button type="button" onclick="openEditIjazaModal('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">دەستکاری</button>
+              <button type="button" onclick="deleteIjaza('${id}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">سڕینەوە</button>
+              <button type="button" onclick="printIjazaReport('${id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-[10px] cursor-pointer">پرێنت</button>
+            </td>
+            <td class="p-2 border font-bold text-slate-800">${item.ijaza_nawi_farmanbar || '-'}</td>
+            <td class="p-2 border text-blue-800">${item.ijaza_wazifa || '-'}</td>
+            <td class="p-2 border font-mono">${item.ijaza_barwar_dastpek || '-'} <span class="text-gray-500 text-[11px]">(${item.ijaza_rozhi_dastpek || ''})</span></td>
+            <td class="p-2 border font-mono">${item.ijaza_barwar_tawawbun || '-'} <span class="text-gray-500 text-[11px]">(${item.ijaza_rozhi_tawawbun || ''})</span></td>
+            <td class="p-2 border text-center font-bold text-green-700">${item.ijaza_mawaka || '-'}</td>
+            <td class="p-2 border text-center">${leaveObj.html}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function printIjazaReport(id) {
+      const item = ijazaData.find(x => String(x.ijaza_ID) === String(id));
+      if (!item) return;
+
+      activeEmpNameForPDF = item.ijaza_nawi_farmanbar || 'کارمەند';
+
+      document.getElementById('cvEmpNameTitle').innerText = activeEmpNameForPDF;
+      document.getElementById('cvEmpName').innerText = activeEmpNameForPDF;
+      document.getElementById('cvEmpWazifa').innerText = item.ijaza_wazifa || '-';
+      document.getElementById('cvDastpek').innerText = item.ijaza_barwar_dastpek || '-';
+      document.getElementById('cvRozhDastpek').innerText = item.ijaza_rozhi_dastpek || '-';
+      document.getElementById('cvTawawbun').innerText = item.ijaza_barwar_tawawbun || '-';
+      document.getElementById('cvRozhTawawbun').innerText = item.ijaza_rozhi_tawawbun || '-';
+      document.getElementById('cvMawaka').innerText = item.ijaza_mawaka || '-';
+      document.getElementById('cvMabast').innerText = item.ijaza_mabast || '-';
+      
+      document.getElementById('cvMawakaTxt').innerText = item.ijaza_mawaka ? item.ijaza_mawaka.replace(' ڕۆژ', '') : '-';
+      document.getElementById('cvDastpekTxt').innerText = item.ijaza_barwar_dastpek || '-';
+      document.getElementById('cvTawawbunTxt').innerText = item.ijaza_barwar_tawawbun || '-';
+      document.getElementById('cvSzaRozh').innerText = item.ijaza_sza_maway_rozh || '٢';
+
+      document.getElementById('footerEmpName').innerText = activeEmpNameForPDF;
+      document.getElementById('footerReportDate').innerText = item.ijaza_barwar || '-';
+
+      const modal = document.getElementById('cvModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeCVModal() {
+      const modal = document.getElementById('cvModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function filterTable() {
+      const searchText = document.getElementById('searchEmp').value.toLowerCase();
+      const statusText = document.getElementById('filterStatus').value;
+
+      const filtered = ijazaData.filter(item => {
+        const nameMatch = (item.ijaza_nawi_farmanbar || '').toLowerCase().includes(searchText);
+        const leaveObj = getLeaveStatus(item.ijaza_barwar_dastpek, item.ijaza_barwar_tawawbun);
+        const statusMatch = !statusText || leaveObj.text === statusText;
+        return nameMatch && statusMatch;
+      });
+
+      renderTable(filtered);
+    }
+
+    function openIjazaModal() {
+      const form = document.getElementById('ijazaForm');
+      if (form) form.reset();
+      
+      const editIdInput = document.getElementById('editIjazaId');
+      if (editIdInput) editIdInput.value = '';
+      
+      const modalTitle = document.getElementById('modalTitle');
+      if (modalTitle) modalTitle.innerText = 'تۆمارکردنی مۆڵەتی کارمەند';
+      
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}/${mm}/${dd}`;
+      
+      const barwarInput = document.getElementById('ijaza_barwar');
+      if (barwarInput) barwarInput.value = todayStr;
+      
+      const rozhiBarwarInput = document.getElementById('ijaza_barwar_rozhi');
+      if (rozhiBarwarInput) rozhiBarwarInput.value = getKurdishDayName(todayStr);
+
+      const modal = document.getElementById('ijazaModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function openEditIjazaModal(id) {
+      const item = ijazaData.find(x => String(x.ijaza_ID) === String(id));
+      if (!item) return;
+
+      document.getElementById('editIjazaId').value = item.ijaza_ID;
+      document.getElementById('ijaza_barwar').value = item.ijaza_barwar || '';
+      document.getElementById('ijaza_barwar_rozhi').value = item.ijaza_barwar_rozhi || '';
+      document.getElementById('ijaza_nawi_farmanbar').value = item.ijaza_nawi_farmanbar || '';
+      document.getElementById('ijaza_wazifa').value = item.ijaza_wazifa || '';
+      
+      const startVal = item.ijaza_barwar_dastpek || '';
+      document.getElementById('ijaza_barwar_dastpek').value = startVal;
+      document.getElementById('ijaza_rozhi_dastpek').value = item.ijaza_rozhi_dastpek || '';
+      if(startVal) {
+        document.getElementById('ijaza_barwar_dastpek_picker').value = startVal.replace(/\//g, '-');
+      } else {
+        document.getElementById('ijaza_barwar_dastpek_picker').value = '';
+      }
+
+      const endVal = item.ijaza_barwar_tawawbun || '';
+      document.getElementById('ijaza_barwar_tawawbun').value = endVal;
+      document.getElementById('ijaza_rozhi_tawawbun').value = item.ijaza_rozhi_tawawbun || '';
+      if(endVal) {
+        document.getElementById('ijaza_barwar_tawawbun_picker').value = endVal.replace(/\//g, '-');
+      } else {
+        document.getElementById('ijaza_barwar_tawawbun_picker').value = '';
+      }
+
+      document.getElementById('ijaza_mawaka').value = item.ijaza_mawaka || '';
+      document.getElementById('ijaza_mabast').value = item.ijaza_mabast || '';
+      document.getElementById('ijaza_sza_maway_rozh').value = item.ijaza_sza_maway_rozh || '';
+
+      const empName = item.ijaza_nawi_farmanbar || '';
+      document.getElementById('modalTitle').innerText = `دەستکاریکردنی مۆڵەت - ${empName}`;
+      
+      const modal = document.getElementById('ijazaModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeIjazaModal() {
+      const modal = document.getElementById('ijazaModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    async function saveIjaza(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editIjazaId').value;
+      const selectedEmp = document.getElementById('ijaza_nawi_farmanbar').value;
+
+      const activeLeave = ijazaData.find(item => {
+        if (editId && String(item.ijaza_ID) === String(editId)) return false;
+        if (item.ijaza_nawi_farmanbar !== selectedEmp) return false;
+
+        let parseDate = (str) => {
+          let p = str.split(/[\/\-]/);
+          if (p.length === 3) return new Date(p[0], p[1] - 1, p[2]);
+          return null;
+        };
+
+        let dStart = parseDate(item.ijaza_barwar_dastpek);
+        let dEnd = parseDate(item.ijaza_barwar_tawawbun);
+        let today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (!dStart || !dEnd) return false;
+        dStart.setHours(0, 0, 0, 0);
+        dEnd.setHours(0, 0, 0, 0);
+
+        return (today >= dStart && today <= dEnd) || (today < dStart);
+      });
+
+      if (activeLeave) {
+        alert(`تکایە ئاگادار بە! ئەم کارمەندە (${selectedEmp}) لە ئێستادا مۆڵەتی هەیە یان مۆڵەتەکەی لە داهاتوودا دەستپێدەکات، ناتوانیت مۆڵەتی نوێی بۆ تۆمار بکەیت تاوەکو مۆڵەتەکەی ئێستای تەواو دەبێت.`);
+        return;
+      }
+
+      const payload = {
+        ijaza_barwar: document.getElementById('ijaza_barwar').value.trim(),
+        ijaza_barwar_rozhi: document.getElementById('ijaza_barwar_rozhi').value.trim(),
+        ijaza_nawi_farmanbar: selectedEmp,
+        ijaza_wazifa: document.getElementById('ijaza_wazifa').value.trim(),
+        ijaza_barwar_dastpek: document.getElementById('ijaza_barwar_dastpek').value.trim(),
+        ijaza_rozhi_dastpek: document.getElementById('ijaza_rozhi_dastpek').value.trim(),
+        ijaza_barwar_tawawbun: document.getElementById('ijaza_barwar_tawawbun').value.trim(),
+        ijaza_rozhi_tawawbun: document.getElementById('ijaza_rozhi_tawawbun').value.trim(),
+        ijaza_mawaka: document.getElementById('ijaza_mawaka').value.trim(),
+        ijaza_mabast: document.getElementById('ijaza_mabast').value.trim(),
+        ijaza_sza_maway_rozh: document.getElementById('ijaza_sza_maway_rozh').value.trim() || null
+      };
+
+      showLoading(true, "خەزنکردنی داتا...");
+      let error;
+      if (editId) {
+        const res = await supabaseClient.from('tbl_ijaza').update(payload).eq('ijaza_ID', editId);
+        error = res.error;
+      } else {
+        const res = await supabaseClient.from('tbl_ijaza').insert([payload]);
+        error = res.error;
+      }
+      showLoading(false);
+
+      if (error) {
+        alert('کێشە لە پاشەکەوتکردن: ' + error.message);
+      } else {
+        closeIjazaModal();
+        fetchIjazaData();
+      }
+    }
+
+    function deleteIjaza(id) {
+      pendingDeleteId = id;
+      confirmModal.classList.remove('hidden');
+      confirmModal.classList.add('flex');
+    }
+  </script>
+</body>
+</html>

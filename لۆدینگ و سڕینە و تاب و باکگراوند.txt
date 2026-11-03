@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تایبەتمەندییە دەرهێنراوەکانی ڕاپۆرت</title>
+
+    <!-- ١. Favicon (لۆگۆی تاب) -->
+    <link rel="icon" type="image/png" href="./images/icon.png">
+
+    <!-- فونتی Vazirmatn -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ٢. Background Class & Custom Styles (کۆدەکانی باکگراوەند) -->
+    <style>
+      body { font-family: 'Vazirmatn', sans-serif; }
+
+      /* ستایلی باکگراوەندی سەرەکی (Background Style) */
+      .dashboard-bg {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+      }
+
+      @media print {
+        body * {
+          visibility: hidden !important;
+        }
+        #printArea, #printArea * {
+          visibility: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #printArea {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 5mm !important;
+          box-shadow: none !important;
+          background: white !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+</head>
+
+<body class="dashboard-bg min-h-screen p-4 text-slate-100 text-xs flex flex-col items-center justify-center gap-6">
+
+    <!-- ٣. FULL SCREEN LOADING OVERLAY (کۆدی لۆدینگ) -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+      <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+      <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+    </div>
+
+    <!-- ٤. CUSTOM DELETE CONFIRMATION MODAL (جۆری پشاندانی نامەی سڕینەوە) -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+      <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+          ⚠️
+        </div>
+        <div class="space-y-1">
+          <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+          <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەم پەڕەیە؟</p>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+          <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- تاقیکردنەوەی لۆگۆی ڕاپۆرت و دوگمەی سڕینەوە -->
+    <div class="bg-white text-slate-900 p-6 rounded-xl shadow-2xl max-w-md w-full text-center space-y-4" id="printArea">
+      
+      <!-- ٥. REPORT LOGO (لۆگۆی ڕاپۆرتەکان) -->
+      <div class="flex items-center justify-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+        <img id="hotelLogo" src="images/logo_black.png" onerror="this.src='images/logo_black.png';" alt="Jilla Hotel Logo" class="h-10 w-auto object-contain">
+        <h1 class="text-black font-black text-sm">هوتێل جیلا - Jilla Hotel</h1>
+      </div>
+
+      <p class="text-gray-600 text-xs">کۆدەکانی باکگراوەند، مۆداڵی سڕینەوە و لۆدینگ لێرەدا تاقیبکەرەوە:</p>
+
+      <!-- دوگمەی چالاککردنی سڕینەوە و لۆدینگ -->
+      <div class="flex gap-2 justify-center no-print">
+        <button id="resetBtn" type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded shadow transition">
+          🗑️ تاقیکردنەوەی سڕینەوە
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ٦. SCRIPTS (سکرێپتی کارکردنی سڕینەوە و لۆدینگ) -->
+    <script>
+      const resetBtn = document.getElementById('resetBtn');
+      const confirmModal = document.getElementById('confirmModal');
+      const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+      const confirmOkBtn = document.getElementById('confirmOkBtn');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+
+      // ١. کاتێک کلیک لە دوگمەی سڕینەوە دەکرێت، نامەکە (مۆداڵ) پیشان بدە
+      resetBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+      });
+
+      // ٢. داپۆشینی مۆداڵ لەکاتی کلیک لە سەر "پەشیمانبوونەوە"
+      confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+      });
+
+      // ٣. لەکاتی ڕەزامەندی سڕینەوە، لۆدینگەکەی پیشان بدە
+      confirmOkBtn.addEventListener('click', () => {
+        // شاردنەوەی مۆداڵی دیالۆگ
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+
+        // نیشاندانی لۆدینگ
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+
+        setTimeout(() => {
+          // شاردنەوەی لۆدینگ پاش سڕینەوە
+          loadingOverlay.classList.add('hidden');
+          loadingOverlay.classList.remove('flex');
+          alert('کرداری سڕینەوە بەسەرکەوتوویی ئەنجامدرا!');
+        }, 1200);
+      });
+    </script>
+</body>
+</html>

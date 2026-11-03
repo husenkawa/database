@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+  <script src="auth.js"></script>
+  <script src="theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>کارمەندەکانی هوتێل جیلا</title>
+
+  <!-- Favicon (لۆگۆی تاب) -->
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- html2pdf library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+
+  <!-- Vazirmatn Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Vazirmatn', sans-serif; }
+
+    /* باکگراوەندی سەرەکی */
+    .dashboard-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+    }
+
+    .access-row {
+      height: 28px !important;
+      max-height: 28px !important;
+    }
+    .access-cell {
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+      line-height: 1.2 !important;
+    }
+    
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #reportModal, #reportModal *, #cvModal, #cvModal *, #allCvModal, #allCvModal * {
+        visibility: visible !important;
+      }
+      #reportModal, #cvModal, #allCvModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+      #printArea, #cvPrintArea, #allCvPrintArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        box-shadow: none !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .page-break {
+        page-break-after: always;
+        break-after: page;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="dashboard-bg min-h-screen p-3 md:p-6 select-none text-slate-100">
+
+  <!-- FULL SCREEN LOADING OVERLAY -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+  </div>
+
+  <!-- CUSTOM DELETE CONFIRMATION MODAL -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+      <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+        ⚠️
+      </div>
+      <div class="space-y-1">
+        <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+        <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیای لە سڕینەوەی ئەو تۆمارە؟</p>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+        <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Section -->
+  <div class="max-w-7xl mx-auto flex justify-between items-center mb-3 no-print">
+    <div class="flex items-center gap-3 bg-white/95 px-4 py-1.5 rounded-lg shadow-md border border-gray-200">
+      <img id="hotelLogo" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="لۆگۆی هوتێل" class="h-8 w-auto object-contain">
+      <h1 class="text-black font-black text-xs hidden sm:block">هوتێل جیلا - Jilla Hotel</h1>
+    </div>
+    <a href="main.html" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-3 py-1.5 rounded shadow-md border border-gray-600 no-underline">
+      گەڕانەوە
+    </a>
+  </div>
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto no-print space-y-3">
+    
+    <!-- Top Action Bar -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-3 shadow-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-3 text-slate-800">
+      <h2 class="text-lg font-extrabold text-blue-900">کارمەندەکانی هوتێل جیلا</h2>
+      
+      <!-- Filters & Search -->
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="filterStatus" onchange="filterStaffData()" class="bg-white border border-gray-300 text-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500">
+          <option value="all">هەموو دۆخەکان</option>
+          <option value="active">بەردەوامە</option>
+          <option value="inactive">وازی هێناوە</option>
+        </select>
+        <input type="text" id="searchName" oninput="filterStaffData()" placeholder="گەڕان بەدوایناو..." class="bg-white border border-gray-300 text-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500 w-44">
+      </div>
+
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <button onclick="openStaffModal()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1 justify-center flex-1 md:flex-none text-xs">
+          <span>+ تۆمارکردنی کارمەندی نوێ</span>
+        </button>
+        <button onclick="generateReport()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1 justify-center flex-1 md:flex-none text-xs">
+          <span>🖨️ ڕاپۆرتی کارمەندەکان</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-3 shadow-2xl border border-gray-200 overflow-hidden text-slate-800">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-blue-900 text-white text-xs access-row">
+              <th class="access-cell border text-center">کردارەکان</th>
+              <th class="access-cell border">ناو</th>
+              <th class="access-cell border">پۆزشن</th>
+              <th class="access-cell border">نەتەوە</th>
+              <th class="access-cell border">ژمارەی موبایل</th>
+              <th class="access-cell border">مووچە</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody" class="text-xs font-medium">
+            <tr><td colspan="6" class="text-center p-4 text-gray-500">چاوەڕوانبن، داتا دەهێنرێت...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Status Bar & Bottom Action -->
+  <footer class="max-w-7xl mx-auto bg-slate-800 border border-slate-700 px-4 py-2 text-xs text-slate-400 flex flex-col md:flex-row justify-between items-center gap-2 rounded-xl mt-3 no-print">
+    <div id="rowCount">کارمەندی تۆمارکراو هەیە: 0</div>
+    <div>
+      <button onclick="openAllCvModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-lg shadow transition text-xs">
+        📄 CVی هەموو کارمەندەکان
+      </button>
+    </div>
+    <div>Jilla Hotel Management System</div>
+  </footer>
+
+
+  <!-- STAFF MODAL -->
+  <div id="staffModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-50 no-print">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-4 max-w-3xl w-full max-h-[96vh] overflow-y-auto shadow-2xl space-y-2">
+      
+      <div class="flex justify-between items-center border-b border-gray-200 pb-1.5">
+        <h3 id="modalTitle" class="text-base font-bold text-blue-900">تۆمارکردنی کارمەند</h3>
+        <button onclick="closeStaffModal()" class="text-gray-500 hover:text-red-600 font-bold text-base">✕</button>
+      </div>
+      
+      <form id="staffForm" onsubmit="saveStaff(event)" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+        <input type="hidden" id="editEmpId">
+        <input type="hidden" id="emp_photo">
+        <input type="hidden" id="emp_front_ID">
+        <input type="hidden" id="emp_back_ID">
+
+        <!-- Right Column: Essential Text Fields -->
+        <div class="space-y-1.5 md:col-span-1">
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">ناوی کارمەند *</label>
+            <input type="text" id="emp_name" required class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">بەرواری لەدایکبوون *</label>
+            <div class="flex gap-1">
+              <input type="date" id="emp_dob" required onchange="calculateAge()" class="w-1/2 bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 text-[10px]">
+              <input type="text" id="emp_age_text" readonly placeholder="تەمەن..." class="w-1/2 bg-gray-100 border border-gray-300 rounded-md p-1 text-blue-900 font-bold text-[10px]">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">نەتەوە *</label>
+            <div class="flex gap-1">
+              <select id="emp_nation" required class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 text-[11px]">
+                <option value="">نەتەوە هەڵبژێرە...</option>
+              </select>
+              <button type="button" onclick="openNationModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] px-2 rounded-md whitespace-nowrap font-bold">
+                نەتەوەکان
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">بەرواری دەستبەکاربوون *</label>
+            <div class="flex gap-1">
+              <input type="date" id="emp_hire_date" required onchange="calculateServiceDuration()" class="w-1/2 bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 text-[10px]">
+              <input type="text" id="emp_service_text" readonly placeholder="ماوەی کارکردن..." class="w-1/2 bg-gray-100 border border-gray-300 rounded-md p-1 text-emerald-800 font-bold text-[10px]">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">بەرواری وازهێنان *</label>
+            <input type="text" id="emp_fire_date" required value="بەردەوامە" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+          </div>
+
+          <div class="grid grid-cols-2 gap-1">
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">پۆزشن *</label>
+              <div class="flex gap-1">
+                <select id="emp_pos" required onchange="onPositionSelect()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 text-[11px]">
+                  <option value="">پۆزشن هەڵبژێرە...</option>
+                </select>
+                <button type="button" onclick="openPositionModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] px-1.5 rounded-md whitespace-nowrap font-bold">
+                  تۆمارکردن
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">مووچە</label>
+              <input type="text" id="emp_salary" readonly class="w-full bg-gray-100 border border-gray-300 rounded-md p-1 text-emerald-700 font-bold font-mono">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">ژمارەی موبایل</label>
+            <input type="text" id="emp_phone" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+          </div>
+
+          <div class="grid grid-cols-2 gap-1">
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">شوێنی لەدایکبوون</label>
+              <input type="text" id="emp_L_o_b" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">شوێنی نیشتەجێبوون</label>
+              <input type="text" id="emp_locate" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1">
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">کاتی دەستپێک</label>
+              <input type="text" id="emp_start_time" placeholder="نموونە 12 شەو" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 mb-0.5">کاتی تەواوبوون</label>
+              <input type="text" id="emp_end_time" placeholder="نموونە 8 بەیانی" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+            </div>
+          </div>
+        </div>
+
+        <!-- Left Column: Photos, IDs, & Note -->
+        <div class="space-y-1.5 md:col-span-1">
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">وێنەی کارمەند</label>
+            <div class="w-full h-20 bg-gray-50 border border-gray-300 rounded-md flex flex-col items-center justify-center relative overflow-hidden">
+              <img id="photoPreview" src="" alt="" class="w-full h-full object-cover hidden">
+              <div id="uploadPlaceholder" class="flex flex-col items-center justify-center text-gray-400 p-1">
+                <span class="text-[10px]">وێنە هەڵبژێرە</span>
+                <input type="file" accept="image/*" onchange="handleFileUpload(event, 'emp_photo', 'photoPreview', 'uploadPlaceholder', 'downloadPhotoBtn', 'removePhotoBtn')" class="absolute inset-0 opacity-0 cursor-pointer">
+              </div>
+            </div>
+            <div class="flex gap-1 mt-1">
+              <button type="button" id="downloadPhotoBtn" onclick="downloadFile('photoPreview')" class="hidden flex-1 bg-blue-600 hover:bg-blue-500 text-white py-0.5 rounded text-[9px]">دابەزاندن 📥</button>
+              <button type="button" id="removePhotoBtn" onclick="removeFile('emp_photo', 'photoPreview', 'uploadPlaceholder', 'downloadPhotoBtn', 'removePhotoBtn')" class="hidden flex-1 bg-red-600 hover:bg-red-500 text-white py-0.5 rounded text-[9px]">سڕینەوە ❌</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">ناسنامەی کارمەند <span class="text-gray-400 font-normal text-[9px]">(پێشەوە)</span></label>
+            <div class="w-full h-16 bg-gray-50 border border-gray-300 rounded-md flex flex-col items-center justify-center relative overflow-hidden">
+              <img id="frontIdPreview" src="" alt="" class="w-full h-full object-cover hidden">
+              <div id="uploadFrontIdPlaceholder" class="flex flex-col items-center justify-center text-gray-400 p-1">
+                <span class="text-[10px]">وێنەی پێشەوە باربکە</span>
+                <input type="file" accept="image/*" onchange="handleFileUpload(event, 'emp_front_ID', 'frontIdPreview', 'uploadFrontIdPlaceholder', 'downloadFrontIdBtn', 'removeFrontIdBtn')" class="absolute inset-0 opacity-0 cursor-pointer">
+              </div>
+            </div>
+            <div class="flex gap-1 mt-0.5">
+              <button type="button" id="downloadFrontIdBtn" onclick="downloadFile('frontIdPreview')" class="hidden flex-1 bg-blue-600 hover:bg-blue-500 text-white py-0.5 rounded text-[9px]">دابەزاندن 📥</button>
+              <button type="button" id="removeFrontIdBtn" onclick="removeFile('emp_front_ID', 'frontIdPreview', 'uploadFrontIdPlaceholder', 'downloadFrontIdBtn', 'removeFrontIdBtn')" class="hidden flex-1 bg-red-600 hover:bg-red-500 text-white py-0.5 rounded text-[9px]">سڕینەوە ❌</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">ناسنامەی کارمەند <span class="text-gray-400 font-normal text-[9px]">(پشتەوە)</span></label>
+            <div class="w-full h-16 bg-gray-50 border border-gray-300 rounded-md flex flex-col items-center justify-center relative overflow-hidden">
+              <img id="backIdPreview" src="" alt="" class="w-full h-full object-cover hidden">
+              <div id="uploadBackIdPlaceholder" class="flex flex-col items-center justify-center text-gray-400 p-1">
+                <span class="text-[10px]">وێنەی پشتەوە باربکە</span>
+                <input type="file" accept="image/*" onchange="handleFileUpload(event, 'emp_back_ID', 'backIdPreview', 'uploadBackIdPlaceholder', 'downloadBackIdBtn', 'removeBackIdBtn')" class="absolute inset-0 opacity-0 cursor-pointer">
+              </div>
+            </div>
+            <div class="flex gap-1 mt-0.5">
+              <button type="button" id="downloadBackIdBtn" onclick="downloadFile('backIdPreview')" class="hidden flex-1 bg-blue-600 hover:bg-blue-500 text-white py-0.5 rounded text-[9px]">دابەزاندن 📥</button>
+              <button type="button" id="removeBackIdBtn" onclick="removeFile('emp_back_ID', 'backIdPreview', 'uploadBackIdPlaceholder', 'downloadBackIdBtn', 'removeBackIdBtn')" class="hidden flex-1 bg-red-600 hover:bg-red-500 text-white py-0.5 rounded text-[9px]">سڕینەوە ❌</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">تێبینی</label>
+            <textarea id="emp_note" rows="2" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 focus:outline-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-gray-200 mt-1">
+          <button type="button" onclick="closeStaffModal()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md transition text-xs">داخستن</button>
+          <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-1.5 rounded-md font-bold transition text-xs">تۆمارکردن</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- MODAL NATIONS -->
+  <div id="nationModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-4 z-50 no-print">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-4 max-w-md w-full shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-base font-bold text-emerald-800">نەتەوەکان</h3>
+        <button onclick="closeNationModal()" class="text-gray-500 hover:text-red-600 font-bold">✕</button>
+      </div>
+
+      <form onsubmit="saveNation(event)" class="flex gap-2">
+        <input type="hidden" id="editNationId">
+        <input type="text" id="new_nation_input" placeholder="نەتەوە بنووسە..." required class="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs">
+        <button type="submit" id="nationSubmitBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 py-2 rounded-lg font-bold">زیادکردن</button>
+      </form>
+
+      <div class="max-h-56 overflow-y-auto border border-gray-200 rounded-lg">
+        <ul id="nationList" class="divide-y divide-gray-200 text-xs">
+          <li class="p-2 text-center text-gray-400">هینانی نەتەوەکان...</li>
+        </ul>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button type="button" onclick="closeNationModal()" class="bg-gray-400 hover:bg-gray-500 text-white text-xs px-4 py-1.5 rounded-lg">داخستن</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL POSITIONS -->
+  <div id="positionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-4 z-50 no-print">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-4 max-w-md w-full shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-base font-bold text-indigo-900">تۆمارکردنی پۆزشن</h3>
+        <button onclick="closePositionModal()" class="text-gray-500 hover:text-red-600 font-bold">✕</button>
+      </div>
+
+      <form onsubmit="savePosition(event)" class="space-y-2 text-xs">
+        <input type="hidden" id="editPosId">
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">پۆزشن *</label>
+          <input type="text" id="new_pos_position" placeholder="نموونە : ڕسپشن" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">مووچە (دیناری عێراقی) *</label>
+          <input type="text" id="new_pos_salary" placeholder="نموونە: 600000" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 font-mono">
+        </div>
+        <button type="submit" id="posSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-bold">تۆمارکردنی پۆزشن</button>
+      </form>
+
+      <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+        <table class="w-full text-right text-xs">
+          <thead class="bg-gray-100 font-bold">
+            <tr>
+              <th class="p-2 border-b">پۆزشن</th>
+              <th class="p-2 border-b">مووچە</th>
+              <th class="p-2 border-b text-center">کردارەکان</th>
+            </tr>
+          </thead>
+          <tbody id="positionList">
+            <tr><td colspan="3" class="p-2 text-center text-gray-400">هینانی پۆزشنەکان...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button type="button" onclick="closePositionModal()" class="bg-gray-400 hover:bg-gray-500 text-white text-xs px-4 py-1.5 rounded-lg">داخستن</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal Report (A4 Preview & Printable) -->
+  <div id="reportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col text-slate-900">
+      
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">ڕاپۆرتی کارمەندەکان</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">پرێنت (Print)</button>
+          <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">دابەزاندن بە PDF</button>
+          <button onclick="closeReportModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">داخستن</button>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex justify-center">
+        <div id="printArea" class="bg-white p-5 text-black shadow" dir="ltr" style="width: 190mm;">
+          
+          <div class="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
+            <div class="flex items-center">
+              <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="لۆگۆی هوتێل" class="h-10 w-auto object-contain">
+            </div>
+            <div class="text-center">
+              <h1 class="text-sm font-black text-black">تۆماری گشتی کارمەندانی هوتێل جیلا</h1>
+            </div>
+            <div></div>
+          </div>
+
+          <table class="w-full text-left border-collapse border border-black mb-2 text-[11px]">
+            <thead>
+              <tr class="bg-gray-100 font-bold border-b border-black">
+                <th class="p-1 border border-black text-center w-8">ژمارە</th>
+                <th class="p-1 border border-black">ناوی کارمەند</th>
+                <th class="p-1 border border-black">پۆزشن</th>
+                <th class="p-1 border border-black">نەتەوە</th>
+                <th class="p-1 border border-black">ژمارەی موبایل</th>
+                <th class="p-1 border border-black text-center">مووچە</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+            </tbody>
+          </table>
+
+          <div class="flex justify-start mt-8 pt-4 pb-6 text-xs font-bold border-t border-gray-300" dir="rtl">
+            <div>
+              بەڕێوەبەری گشتی هوتێل جیلا: <span id="managerNameDisplay" class="font-normal underline mr-2">چاوەڕوانبن...</span>
+              <div class="text-[10px] text-gray-600 font-normal mt-0.5">بەڕێوەبەری گشتی هوتێل جیلا بۆ کاری باری کارمەندان و بەڕێوەبەردنی هوتێل</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Modal CV (A4 Single Employee Details) -->
+  <div id="cvModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col text-slate-900">
+      
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">سی ڤی کارمەند (CV)</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">پرێنت (Print)</button>
+          <button onclick="closeCVModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">داخستن</button>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex justify-center">
+        <div id="cvPrintArea" class="bg-white text-black shadow relative" dir="rtl" style="width: 190mm; min-height: 270mm; padding: 0; display: flex; flex-direction: column; justify-content: space-between; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+          
+          <div>
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important; color: white; padding: 14px 18px; position: relative; border-bottom: 4px solid #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background-color: #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+              
+              <div class="flex justify-between items-center">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-3">
+                    <h1 class="text-lg font-black tracking-wide" style="color: #ffffff;">هوتێل جیلا</h1>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-sm font-bold text-amber-400" dir="ltr">JILLA HOTEL</h2>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-xs font-bold text-gray-200">فندق جيلا</h2>
+                  </div>
+                  <p class="text-[11px] text-gray-300 font-medium">هەولێر - شەقامی ٦٠م - بەرامبەر نەخۆشخانەی بار</p>
+                  <div class="flex items-center gap-4 text-[11px] font-mono pt-0.5 text-amber-300" dir="ltr">
+                    <span>📞 0750 941 5656</span>
+                    <span>📞 0770 941 5656</span>
+                  </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-center p-1">
+                  <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" crossorigin="anonymous" alt="Jilla Hotel Logo" style="width: 100px; height: 60px; object-fit: contain; filter: brightness(0) invert(1);">
+                </div>
+              </div>
+            </div>
+
+            <!-- Title Bar -->
+            <div style="background-color: #f1f5f9 !important; padding: 6px 16px; border-bottom: 2px solid #0f172a; text-align: right; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <h2 id="cvHeaderTitle" class="text-xs font-black text-slate-900">کارمەندی هوتێل: --</h2>
+            </div>
+
+            <!-- Table Without 'خەسڵەت' -->
+            <div class="p-4">
+              <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #0f172a; font-size: 11px;">
+                <thead>
+                  <tr style="background-color: #0f172a; color: #ffffff;">
+                    <th style="border: 1px solid #1e293b; padding: 6px 10px; text-align: right; width: 35%;">زانیاری</th>
+                    <th style="border: 1px solid #1e293b; padding: 6px 10px; text-align: right; width: 65%;">وردەکاری</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">ناوی کارمەند</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; color: #0f172a;" id="cvName">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">تەمەن (بەروار)</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;" id="cvDob">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">ژمارەی موبایل</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;" id="cvPhone">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">نەتەوە</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px;" id="cvNation">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">شوێنی لەدایکبوون</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px;" id="cvLob">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">شوێنی نیشتەجێبوون</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px;" id="cvLocate">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">بەرواری دەستبەکاربوون</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;" id="cvHireDate">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">بەرواری وازهێنان</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px;" id="cvFireDate">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">کاتی دەستپێک</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;" id="cvTimeStart">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">کاتی تەواوبوون</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;" id="cvTimeEnd">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">پۆزشن</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; color: #1d4ed8;" id="cvPos">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">مووچە</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace; font-weight: bold; color: #15803d;" id="cvSalary">--</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">تێبینی</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 5px 10px;" id="cvNote">--</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Photos Section -->
+              <div style="margin-top: 14px; padding: 10px; border: 1.5px solid #0f172a; background: #f8fafc; border-radius: 6px; page-break-inside: avoid;">
+                <h3 style="font-size: 11px; font-weight: 800; text-align: center; margin-bottom: 10px; color: #0f172a;">وێنەی کارمەند و ناسنامە</h3>
+                <div style="display: flex; justify-content: center; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                  <div style="text-align: center; width: 125px;">
+                    <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">وێنەی کارمەند</p>
+                    <div style="width: 120px; height: 140px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                      <img id="cvEmpPhoto" src="" alt="وێنە" class="hidden" style="max-width:100%; max-height:100%; object-fit:contain;">
+                      <span id="cvNoPhotoText" style="font-size: 9px; color: #9ca3af;">بێ وێنە</span>
+                    </div>
+                  </div>
+                  <div style="text-align: center; width: 190px;">
+                    <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">ناسنامە (پێشەوە)</p>
+                    <div style="width: 185px; height: 115px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                      <img id="cvFrontID" src="" alt="ناسنامە" class="hidden" style="max-width:100%; max-height:100%; object-fit:contain;">
+                      <span id="cvNoFrontID" style="font-size: 9px; color: #9ca3af;">تۆمار نەکراوە</span>
+                    </div>
+                  </div>
+                  <div style="text-align: center; width: 190px;">
+                    <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">ناسنامە (پشتەوە)</p>
+                    <div style="width: 185px; height: 115px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                      <img id="cvBackID" src="" alt="ناسنامە" class="hidden" style="max-width:100%; max-height:100%; object-fit:contain;">
+                      <span id="cvNoBackID" style="font-size: 9px; color: #9ca3af;">تۆمار نەکراوە</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 5px;">
+            <div class="px-6 pb-1 flex justify-between items-end text-xs">
+              <div></div>
+              <div class="text-center" style="margin-top: -5px;">
+                <p id="cvManagerDisplay" class="font-bold text-slate-900 text-sm mb-0.5">محمود ابوبکر</p>
+                <p class="font-bold text-gray-700">بەڕێوەبەری گشتی هوتێل جیلا</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">بۆ کاری باری کارمەندان و بەڕێوەبەردنی هوتێل</p>
+              </div>
+            </div>
+            
+            <div style="background-color: #0f172a !important; height: 12px; width: 100%; position: relative; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <div style="position: absolute; top: 0; right: 0; width: 40%; height: 100%; background-color: #f59e0b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Modal ALL CVs -->
+  <div id="allCvModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-xl max-w-4xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col text-slate-900">
+      
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">سی ڤی سەرجەم کارمەندەکان</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">پرێنت (Print)</button>
+          <button onclick="closeAllCvModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">داخستن</button>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex flex-col items-center">
+        <div id="allCvPrintArea" class="space-y-6" dir="rtl" style="width: 190mm;">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- SCRIPTS -->
+  <script>
+    const SUPABASE_URL = "https://jrdakonfokyayzlcqnef.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allStaffData = [];
+    let positionsData = [];
+    let nationsData = [];
+    let currentManager = 'محمود ابوبکر';
+    let deleteCallback = null;
+
+    function showLoading(text = "تکایە چاوەڕێ بە...") {
+      document.getElementById('loadingText').innerText = text;
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    function showConfirmModal(title, message, onConfirm) {
+      document.getElementById('confModalTitle').innerText = title;
+      document.getElementById('confirmMessage').innerText = message;
+      deleteCallback = onConfirm;
+
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    document.getElementById('confirmCancelBtn').addEventListener('click', () => {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      deleteCallback = null;
+    });
+
+    document.getElementById('confirmOkBtn').addEventListener('click', async () => {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+
+      if (deleteCallback) {
+        showLoading("لە سڕینەوەدایە...");
+        await deleteCallback();
+        hideLoading();
+        deleteCallback = null;
+      }
+    });
+
+    function formatCurrency(val) {
+      if (!val) return '-';
+      let clean = String(val).replace(/,/g, '').trim();
+      let num = Number(clean);
+      return isNaN(num) ? val : num.toLocaleString('en-US');
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      showLoading("هینانی زانیارییەکان...");
+      await loadDropdowns();
+      await fetchStaffData();
+      await fetchManagerName();
+      hideLoading();
+    });
+
+    async function loadDropdowns() {
+      try {
+        const { data: nations } = await supabaseClient.from('2_tbl_nation').select('*');
+        if (nations) {
+          nationsData = nations;
+          renderNationDropdown();
+        }
+
+        const { data: positions } = await supabaseClient.from('2_tbl_posation').select('*');
+        if (positions) {
+          positionsData = positions;
+          renderPositionDropdown();
+        }
+      } catch (err) {
+        console.error("Error loading dropdowns:", err);
+      }
+    }
+
+    function renderNationDropdown() {
+      const nationSelect = document.getElementById('emp_nation');
+      if (nationSelect) {
+        nationSelect.innerHTML = '<option value="">نەتەوە هەڵبژێرە...</option>' + nationsData.map(n => {
+          const val = n.nation || n.Nation || Object.values(n)[1] || '';
+          return `<option value="${val}">${val}</option>`;
+        }).join('');
+      }
+    }
+
+    function renderPositionDropdown() {
+      const posSelect = document.getElementById('emp_pos');
+      if (posSelect) {
+        posSelect.innerHTML = '<option value="">پۆزشن هەڵبژێرە...</option>' + positionsData.map(p => {
+          const posVal = p.pos_position || p.Pos_Position || p.position || '';
+          return `<option value="${posVal}">${posVal}</option>`;
+        }).join('');
+      }
+    }
+
+    async function fetchManagerName() {
+      const { data, error } = await supabaseClient
+        .from('2_tbl_emp')
+        .select('emp_manager')
+        .limit(1);
+
+      if (!error && data && data.length > 0 && data[0].emp_manager) {
+        currentManager = data[0].emp_manager;
+      }
+      document.getElementById('managerNameDisplay').innerText = currentManager;
+      document.getElementById('cvManagerDisplay').innerText = currentManager;
+    }
+
+    async function fetchStaffData() {
+      try {
+        const { data, error } = await supabaseClient.from('2_tbl_emp').select('*');
+        const tbody = document.getElementById('dataTableBody');
+        if (error) {
+          if(tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-amber-600">کێشە لە هێنانی داتا: ${error.message}</td></tr>`;
+          return;
+        }
+
+        allStaffData = data || [];
+        if (allStaffData.length > 0 && allStaffData[0].emp_manager) {
+          currentManager = allStaffData[0].emp_manager;
+          document.getElementById('managerNameDisplay').innerText = currentManager;
+          document.getElementById('cvManagerDisplay').innerText = currentManager;
+        }
+
+        renderStaffTable(allStaffData);
+      } catch (err) {
+        console.error("Fetch Exception:", err);
+      }
+    }
+
+    function renderStaffTable(data) {
+      const tbody = document.getElementById('dataTableBody');
+      const rowCountEl = document.getElementById('rowCount');
+      if(rowCountEl) rowCountEl.innerText = `کارمەندی تۆمارکراو هەیە: ${data.length}`;
+
+      if (!tbody) return;
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-500">هیچ کارمەندێک نەدۆزرایەوە.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => {
+        const id = item.emp_ID || item.Emp_ID || item.EMP_ID || item.id || item.ID;
+        const name = item.emp_name || item.Emp_Name || item.EMP_NAME || item.name || '-';
+        const pos = item.emp_pos || item.Emp_Pos || item.EMP_POS || item.pos || '-';
+        const nation = item.emp_nation || item.Emp_Nation || item.EMP_NATION || item.nation || '-';
+        const phone = item.emp_phone || item.Emp_Phone || item.EMP_PHONE || item.phone || '-';
+        const salary = formatCurrency(item.emp_salary || item.Emp_Salary);
+
+        return `
+          <tr class="hover:bg-gray-50 border-b border-gray-200 access-row">
+            <td class="access-cell border text-center space-x-1 space-x-reverse">
+              <button onclick="openEditStaffModal('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">دەستکاری</button>
+              <button onclick="deleteRecord('${id}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">سڕینەوە</button>
+              <button onclick="openCVModal('${id}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">CV</button>
+            </td>
+            <td class="access-cell border font-bold text-gray-700">${name}</td>
+            <td class="access-cell border text-blue-700 font-bold">${pos}</td>
+            <td class="access-cell border">${nation}</td>
+            <td class="access-cell border font-mono">${phone}</td>
+            <td class="access-cell border font-mono text-green-700 font-bold">${salary}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterStaffData() {
+      const searchEl = document.getElementById('searchName');
+      const statusEl = document.getElementById('filterStatus');
+      const searchText = searchEl ? searchEl.value.trim().toLowerCase() : '';
+      const statusFilter = statusEl ? statusEl.value : 'all';
+
+      let filtered = allStaffData.filter(item => {
+        const name = item.emp_name || item.Emp_Name || item.EMP_NAME || item.name || '';
+        const nameMatch = name.toLowerCase().includes(searchText);
+        let statusMatch = true;
+        const fireDate = item.emp_fire_date || item.Emp_Fire_Date || 'بەردەوامە';
+        if (statusFilter === 'active') {
+          statusMatch = (fireDate === 'بەردەوامە' || !fireDate);
+        } else if (statusFilter === 'inactive') {
+          statusMatch = (fireDate && fireDate !== 'بەردەوامە');
+        }
+        return nameMatch && statusMatch;
+      });
+
+      renderStaffTable(filtered);
+    }
+
+    function openStaffModal() {
+      const form = document.getElementById('staffForm');
+      if(form) form.reset();
+      document.getElementById('editEmpId').value = '';
+      document.getElementById('modalTitle').innerText = 'تۆمارکردنی کارمەند';
+      document.getElementById('emp_fire_date').value = 'بەردەوامە';
+      document.getElementById('emp_age_text').value = '';
+      document.getElementById('emp_service_text').value = '';
+      
+      removeFile('emp_photo', 'photoPreview', 'uploadPlaceholder', 'downloadPhotoBtn', 'removePhotoBtn');
+      removeFile('emp_front_ID', 'frontIdPreview', 'uploadFrontIdPlaceholder', 'downloadFrontIdBtn', 'removeFrontIdBtn');
+      removeFile('emp_back_ID', 'backIdPreview', 'uploadBackIdPlaceholder', 'downloadBackIdBtn', 'removeBackIdBtn');
+      
+      const modal = document.getElementById('staffModal');
+      if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function openEditStaffModal(id) {
+      const item = allStaffData.find(x => String(x.emp_ID || x.Emp_ID || x.id || x.ID) === String(id));
+      if (!item) return;
+
+      document.getElementById('editEmpId').value = item.emp_ID || item.Emp_ID || item.id || item.ID;
+      document.getElementById('emp_name').value = item.emp_name || item.Emp_Name || '';
+      document.getElementById('emp_dob').value = item.emp_age || item.Emp_Age || '';
+      calculateAge();
+      document.getElementById('emp_phone').value = item.emp_phone || item.Emp_Phone || '';
+      document.getElementById('emp_nation').value = item.emp_nation || item.Emp_Nation || '';
+      document.getElementById('emp_L_o_b').value = item.emp_L_o_b || item.Emp_L_o_b || '';
+      document.getElementById('emp_locate').value = item.emp_locate || item.Emp_Locate || '';
+      document.getElementById('emp_hire_date').value = item.emp_hire_date || item.Emp_Hire_Date || '';
+      calculateServiceDuration();
+      document.getElementById('emp_fire_date').value = item.emp_fire_date || item.Emp_Fire_Date || 'بەردەوامە';
+      document.getElementById('emp_start_time').value = item.emp_start_time || item.Emp_Start_Time || '';
+      document.getElementById('emp_end_time').value = item.emp_end_time || item.Emp_End_Time || '';
+      document.getElementById('emp_pos').value = item.emp_pos || item.Emp_Pos || '';
+      document.getElementById('emp_salary').value = formatCurrency(item.emp_salary || item.Emp_Salary);
+      document.getElementById('emp_note').value = item.emp_note || item.Emp_Note || '';
+
+      const photoVal = item.emp_photo || item.Emp_Photo || '';
+      const frontVal = item.emp_front_ID || item.Emp_Front_ID || item.emp_front_id || '';
+      const backVal = item.emp_back_ID || item.Emp_Back_ID || item.emp_back_id || '';
+
+      setPreviewFile(photoVal, 'emp_photo', 'photoPreview', 'uploadPlaceholder', 'downloadPhotoBtn', 'removePhotoBtn');
+      setPreviewFile(frontVal, 'emp_front_ID', 'frontIdPreview', 'uploadFrontIdPlaceholder', 'downloadFrontIdBtn', 'removeFrontIdBtn');
+      setPreviewFile(backVal, 'emp_back_ID', 'backIdPreview', 'uploadBackIdPlaceholder', 'downloadBackIdBtn', 'removeBackIdBtn');
+
+      document.getElementById('modalTitle').innerText = 'دەستکاریکردنی تۆمار';
+      const modal = document.getElementById('staffModal');
+      if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function setPreviewFile(val, hiddenId, imgId, placeholderId, downloadBtnId, removeBtnId) {
+      if (val) {
+        document.getElementById(hiddenId).value = val;
+        const img = document.getElementById(imgId);
+        img.src = val;
+        img.classList.remove('hidden');
+        document.getElementById(placeholderId).classList.add('hidden');
+        document.getElementById(downloadBtnId).classList.remove('hidden');
+        document.getElementById(removeBtnId).classList.remove('hidden');
+      } else {
+        removeFile(hiddenId, imgId, placeholderId, downloadBtnId, removeBtnId);
+      }
+    }
+
+    function closeStaffModal() {
+      const modal = document.getElementById('staffModal');
+      if(modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function handleFileUpload(event, hiddenInputId, imgPreviewId, placeholderId, downloadBtnId, removeBtnId) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64String = e.target.result;
+        document.getElementById(hiddenInputId).value = base64String;
+        
+        const preview = document.getElementById(imgPreviewId);
+        preview.src = base64String;
+        preview.classList.remove('hidden');
+        
+        document.getElementById(placeholderId).classList.add('hidden');
+        document.getElementById(downloadBtnId).classList.remove('hidden');
+        document.getElementById(removeBtnId).classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function downloadFile(imgPreviewId) {
+      const imgSrc = document.getElementById(imgPreviewId).src;
+      if (!imgSrc) return;
+      
+      const a = document.createElement('a');
+      a.href = imgSrc;
+      a.download = 'image-file.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function removeFile(hiddenInputId, imgPreviewId, placeholderId, downloadBtnId, removeBtnId) {
+      document.getElementById(hiddenInputId).value = '';
+      const preview = document.getElementById(imgPreviewId);
+      preview.src = '';
+      preview.classList.add('hidden');
+      
+      document.getElementById(placeholderId).classList.remove('hidden');
+      document.getElementById(downloadBtnId).classList.add('hidden');
+      document.getElementById(removeBtnId).classList.add('hidden');
+    }
+
+    function calculateAge() {
+      const dobVal = document.getElementById('emp_dob').value;
+      if (!dobVal) return;
+      
+      const dob = new Date(dobVal);
+      const today = new Date();
+      
+      let years = today.getFullYear() - dob.getFullYear();
+      let months = today.getMonth() - dob.getMonth();
+      let days = today.getDate() - dob.getDate();
+
+      if (days < 0) {
+        months--;
+        const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        days += lastMonth.getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      document.getElementById('emp_age_text').value = `${years} ساڵ و ${months} مانگ`;
+    }
+
+    function calculateServiceDuration() {
+      const hireVal = document.getElementById('emp_hire_date').value;
+      if (!hireVal) {
+        document.getElementById('emp_service_text').value = '';
+        return;
+      }
+
+      const hireDate = new Date(hireVal);
+      const today = new Date();
+
+      let years = today.getFullYear() - hireDate.getFullYear();
+      let months = today.getMonth() - hireDate.getMonth();
+      let days = today.getDate() - hireDate.getDate();
+
+      if (days < 0) {
+        months--;
+        const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        days += lastMonth.getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      document.getElementById('emp_service_text').value = `${years} ساڵ و ${months} مانگ و ${days} ڕۆژ`;
+    }
+
+    function onPositionSelect() {
+      const selectedPos = document.getElementById('emp_pos').value;
+      const salaryInput = document.getElementById('emp_salary');
+      const found = positionsData.find(p => (p.pos_position || p.Pos_Position || p.position) === selectedPos);
+      if (salaryInput) {
+        const rawSal = found ? (found.pos_salary || found.Pos_Salary || found.salary || '') : '';
+        salaryInput.value = formatCurrency(rawSal);
+      }
+    }
+
+    async function saveStaff(event) {
+      event.preventDefault();
+      showLoading("تۆمارکردنی زانیارییەکان...");
+      
+      const editId = document.getElementById('editEmpId').value;
+      const cleanSalary = document.getElementById('emp_salary').value.replace(/,/g, '').trim();
+
+      const payload = {
+        emp_name: document.getElementById('emp_name').value.trim(),
+        emp_age: document.getElementById('emp_dob').value || null,
+        emp_phone: document.getElementById('emp_phone').value.trim(),
+        emp_nation: document.getElementById('emp_nation').value,
+        emp_L_o_b: document.getElementById('emp_L_o_b').value.trim(),
+        emp_locate: document.getElementById('emp_locate').value.trim(),
+        emp_hire_date: document.getElementById('emp_hire_date').value || null,
+        emp_fire_date: document.getElementById('emp_fire_date').value.trim() || 'بەردەوامە',
+        emp_start_time: document.getElementById('emp_start_time').value.trim() || null,
+        emp_end_time: document.getElementById('emp_end_time').value.trim() || null,
+        emp_pos: document.getElementById('emp_pos').value,
+        emp_salary: cleanSalary,
+        emp_note: document.getElementById('emp_note').value.trim(),
+        emp_photo: document.getElementById('emp_photo').value.trim(),
+        emp_front_ID: document.getElementById('emp_front_ID').value.trim(),
+        emp_back_ID: document.getElementById('emp_back_ID').value.trim(),
+        emp_manager: currentManager
+      };
+
+      let error;
+      if (editId) {
+        const res = await supabaseClient.from('2_tbl_emp').update(payload).eq('emp_ID', editId);
+        error = res.error;
+      } else {
+        const res = await supabaseClient.from('2_tbl_emp').insert([payload]);
+        error = res.error;
+      }
+
+      hideLoading();
+
+      if (error) {
+        alert('کێشە لە پاشەکەوتکردن: ' + error.message);
+      } else {
+        closeStaffModal();
+        fetchStaffData();
+      }
+    }
+
+    function deleteRecord(id) {
+      showConfirmModal('ئاگاداری سڕینەوە', 'ئایا دڵنیای لە سڕینەوەی ئەو کارمەندە؟', async () => {
+        const { error } = await supabaseClient.from('2_tbl_emp').delete().eq('emp_ID', id);
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          await fetchStaffData();
+        }
+      });
+    }
+
+    /* --- NATION MANAGEMENT --- */
+    function openNationModal() {
+      document.getElementById('editNationId').value = '';
+      document.getElementById('new_nation_input').value = '';
+      document.getElementById('nationSubmitBtn').innerText = 'زیادکردن';
+      renderNationList();
+      document.getElementById('nationModal').classList.remove('hidden');
+      document.getElementById('nationModal').classList.add('flex');
+    }
+    function closeNationModal() {
+      document.getElementById('nationModal').classList.add('hidden');
+      document.getElementById('nationModal').classList.remove('flex');
+    }
+    function renderNationList() {
+      const ul = document.getElementById('nationList');
+      if (!nationsData || nationsData.length === 0) {
+        ul.innerHTML = `<li class="p-2 text-center text-gray-500">هیچ نەتەوەیەک تۆمار نەکراوە.</li>`;
+        return;
+      }
+      ul.innerHTML = nationsData.map(n => {
+        const id = n.ID || n.id || n.nation_id;
+        const val = n.nation || n.Nation || Object.values(n)[1] || '';
+        return `
+          <li class="p-2 flex justify-between items-center hover:bg-gray-50">
+            <span class="font-bold text-gray-700">${val}</span>
+            <div class="space-x-1 space-x-reverse">
+              <button type="button" onclick="editNation('${id}', '${val}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-2 py-0.5 rounded">دەستکاری</button>
+              <button type="button" onclick="deleteNation('${id}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-2 py-0.5 rounded">✕</button>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+    function editNation(id, val) {
+      document.getElementById('editNationId').value = id;
+      document.getElementById('new_nation_input').value = val;
+      document.getElementById('nationSubmitBtn').innerText = 'گۆڕانکاری';
+    }
+    async function saveNation(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editNationId').value;
+      const input = document.getElementById('new_nation_input');
+      const val = input.value.trim();
+      if (!val) return;
+
+      showLoading("پاشەکەوتکردنی نەتەوە...");
+      let error;
+      if (editId) {
+        const res = await supabaseClient.from('2_tbl_nation').update({ nation: val }).eq('ID', editId);
+        error = res.error;
+      } else {
+        const res = await supabaseClient.from('2_tbl_nation').insert([{ nation: val }]);
+        error = res.error;
+      }
+      hideLoading();
+
+      if (error) {
+        alert('کێشە لە پاشەکەوتکردنی نەتەوە: ' + error.message);
+      } else {
+        input.value = '';
+        document.getElementById('editNationId').value = '';
+        document.getElementById('nationSubmitBtn').innerText = 'زیادکردن';
+        await loadDropdowns();
+        renderNationList();
+      }
+    }
+    function deleteNation(id) {
+      showConfirmModal('سڕینەوەی نەتەوە', 'ئایا دڵنیای لە سڕینەوەی ئەو نەتەوەیە؟', async () => {
+        const { error } = await supabaseClient.from('2_tbl_nation').delete().eq('ID', id);
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          await loadDropdowns();
+          renderNationList();
+        }
+      });
+    }
+
+    /* --- POSITION MANAGEMENT --- */
+    function openPositionModal() {
+      document.getElementById('editPosId').value = '';
+      document.getElementById('new_pos_position').value = '';
+      document.getElementById('new_pos_salary').value = '';
+      document.getElementById('posSubmitBtn').innerText = 'تۆمارکردنی پۆزشن';
+      renderPositionList();
+      document.getElementById('positionModal').classList.remove('hidden');
+      document.getElementById('positionModal').classList.add('flex');
+    }
+    function closePositionModal() {
+      document.getElementById('positionModal').classList.add('hidden');
+      document.getElementById('positionModal').classList.remove('flex');
+    }
+    function renderPositionList() {
+      const tbody = document.getElementById('positionList');
+      if (!positionsData || positionsData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-500">هیچ پۆزشنێک تۆمار نەکراوە.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = positionsData.map(p => {
+        const id = p.ID || p.id || p.pos_id;
+        const posVal = p.pos_position || p.Pos_Position || p.position || '-';
+        const rawSal = p.pos_salary || p.Pos_Salary || p.salary || '';
+        const salVal = formatCurrency(rawSal);
+        return `
+          <tr class="border-b">
+            <td class="p-2 font-bold text-gray-700">${posVal}</td>
+            <td class="p-2 font-mono text-emerald-700 font-bold">${salVal}</td>
+            <td class="p-2 text-center space-x-1 space-x-reverse">
+              <button type="button" onclick="editPosition('${id}', '${posVal}', '${rawSal}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded">دەستکاری</button>
+              <button type="button" onclick="deletePosition('${id}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+    function editPosition(id, pos, sal) {
+      document.getElementById('editPosId').value = id;
+      document.getElementById('new_pos_position').value = pos;
+      document.getElementById('new_pos_salary').value = sal;
+      document.getElementById('posSubmitBtn').innerText = 'گۆڕانکاری پۆزشن';
+    }
+    async function savePosition(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editPosId').value;
+      const posInput = document.getElementById('new_pos_position');
+      const salInput = document.getElementById('new_pos_salary');
+      
+      const posVal = posInput.value.trim();
+      const cleanSalary = salInput.value.replace(/,/g, '').trim();
+      if (!posVal || !cleanSalary) return;
+
+      showLoading("تۆمارکردنی پۆزشن...");
+      let error;
+      if (editId) {
+        const res = await supabaseClient.from('2_tbl_posation').update({
+          pos_position: posVal,
+          pos_salary: cleanSalary
+        }).eq('ID', editId);
+        error = res.error;
+      } else {
+        const res = await supabaseClient.from('2_tbl_posation').insert([{ 
+          pos_position: posVal,
+          pos_salary: cleanSalary
+        }]);
+        error = res.error;
+      }
+      hideLoading();
+
+      if (error) {
+        alert('کێشە لە تۆمارکردنی پۆزشن: ' + error.message);
+      } else {
+        posInput.value = '';
+        salInput.value = '';
+        document.getElementById('editPosId').value = '';
+        document.getElementById('posSubmitBtn').innerText = 'تۆمارکردنی پۆزشن';
+        await loadDropdowns();
+        renderPositionList();
+      }
+    }
+    function deletePosition(id) {
+      showConfirmModal('سڕینەوەی پۆزشن', 'ئایا دڵنیای لە سڕینەوەی ئەو پۆزشنە؟', async () => {
+        const { error } = await supabaseClient.from('2_tbl_posation').delete().eq('ID', id);
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          await loadDropdowns();
+          renderPositionList();
+        }
+      });
+    }
+
+    /* --- REPORT GENERATION --- */
+    function generateReport() {
+      const tbody = document.getElementById('reportTableBody');
+      tbody.innerHTML = '';
+
+      if (allStaffData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-2 text-center text-gray-500">هیچ تۆمارێک نەدۆزراوەتەوە</td></tr>`;
+      }
+
+      allStaffData.forEach((item, index) => {
+        const name = item.emp_name || item.Emp_Name || '-';
+        const pos = item.emp_pos || item.Emp_Pos || '-';
+        const nation = item.emp_nation || item.Emp_Nation || '-';
+        const phone = item.emp_phone || item.Emp_Phone || '-';
+        const salary = formatCurrency(item.emp_salary || item.Emp_Salary);
+
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-black text-left";
+        tr.innerHTML = `
+          <td class="p-1 border border-black text-center">${index + 1}</td>
+          <td class="p-1 border border-black font-bold">${name}</td>
+          <td class="p-1 border border-black">${pos}</td>
+          <td class="p-1 border border-black">${nation}</td>
+          <td class="p-1 border border-black">${phone}</td>
+          <td class="p-1 border border-black font-mono font-bold text-center">${salary}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function downloadPDF() {
+      const element = document.getElementById('printArea');
+      const opt = {
+        margin:       5,
+        filename:     'Staff-Report.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    /* --- SINGLE CV MODAL --- */
+    function openCVModal(id) {
+      const item = allStaffData.find(x => String(x.emp_ID || x.Emp_ID || x.id || x.ID) === String(id));
+      if (!item) return;
+
+      const name = item.emp_name || item.Emp_Name || '-';
+      document.getElementById('cvHeaderTitle').innerText = `کارمەندی هوتێل: ${name}`;
+      document.getElementById('cvName').innerText = name;
+      document.getElementById('cvDob').innerText = item.emp_age || item.Emp_Age || '-';
+      document.getElementById('cvPhone').innerText = item.emp_phone || item.Emp_Phone || '-';
+      document.getElementById('cvNation').innerText = item.emp_nation || item.Emp_Nation || '-';
+      document.getElementById('cvLob').innerText = item.emp_L_o_b || item.Emp_L_o_b || '-';
+      document.getElementById('cvLocate').innerText = item.emp_locate || item.Emp_Locate || '-';
+      document.getElementById('cvHireDate').innerText = item.emp_hire_date || item.Emp_Hire_Date || '-';
+      document.getElementById('cvFireDate').innerText = item.emp_fire_date || item.Emp_Fire_Date || 'بەردەوامە';
+      document.getElementById('cvTimeStart').innerText = item.emp_start_time || item.Emp_Start_Time || '-';
+      document.getElementById('cvTimeEnd').innerText = item.emp_end_time || item.Emp_End_Time || '-';
+      document.getElementById('cvPos').innerText = item.emp_pos || item.Emp_Pos || '-';
+      document.getElementById('cvSalary').innerText = formatCurrency(item.emp_salary || item.Emp_Salary);
+      document.getElementById('cvNote').innerText = item.emp_note || item.Emp_Note || '-';
+
+      const photo = item.emp_photo || item.Emp_Photo || '';
+      const photoEl = document.getElementById('cvEmpPhoto');
+      const noPhotoEl = document.getElementById('cvNoPhotoText');
+      if (photo) {
+        photoEl.src = photo;
+        photoEl.classList.remove('hidden');
+        noPhotoEl.classList.add('hidden');
+      } else {
+        photoEl.src = '';
+        photoEl.classList.add('hidden');
+        noPhotoEl.classList.remove('hidden');
+      }
+
+      const frontID = item.emp_front_ID || item.Emp_Front_ID || item.emp_front_id || '';
+      const frontEl = document.getElementById('cvFrontID');
+      const noFrontEl = document.getElementById('cvNoFrontID');
+      if (frontID) {
+        frontEl.src = frontID;
+        frontEl.classList.remove('hidden');
+        noFrontEl.classList.add('hidden');
+      } else {
+        frontEl.src = '';
+        frontEl.classList.add('hidden');
+        noFrontEl.classList.remove('hidden');
+      }
+
+      const backID = item.emp_back_ID || item.Emp_Back_ID || item.emp_back_id || '';
+      const backEl = document.getElementById('cvBackID');
+      const noBackEl = document.getElementById('cvNoBackID');
+      if (backID) {
+        backEl.src = backID;
+        backEl.classList.remove('hidden');
+        noBackEl.classList.add('hidden');
+      } else {
+        backEl.src = '';
+        backEl.classList.add('hidden');
+        noBackEl.classList.remove('hidden');
+      }
+
+      document.getElementById('cvModal').classList.remove('hidden');
+    }
+
+    function closeCVModal() {
+      document.getElementById('cvModal').classList.add('hidden');
+    }
+
+    /* --- ALL CVs MODAL --- */
+    function openAllCvModal() {
+      const container = document.getElementById('allCvPrintArea');
+      container.innerHTML = '';
+
+      if (allStaffData.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 text-center text-gray-500 rounded">هیچ کارمەندێک نییە بۆ پیشاندانی CV</div>`;
+      } else {
+        allStaffData.forEach((item) => {
+          const name = item.emp_name || item.Emp_Name || '-';
+          const pos = item.emp_pos || item.Emp_Pos || '-';
+          const nation = item.emp_nation || item.Emp_Nation || '-';
+          const phone = item.emp_phone || item.Emp_Phone || '-';
+          const dob = item.emp_age || item.Emp_Age || '-';
+          const lob = item.emp_L_o_b || item.Emp_L_o_b || '-';
+          const locate = item.emp_locate || item.Emp_Locate || '-';
+          const salary = formatCurrency(item.emp_salary || item.Emp_Salary);
+          const hireDate = item.emp_hire_date || item.Emp_Hire_Date || '-';
+          const fireDate = item.emp_fire_date || item.Emp_Fire_Date || 'بەردەوامە';
+          const startTime = item.emp_start_time || item.Emp_Start_Time || '-';
+          const endTime = item.emp_end_time || item.Emp_End_Time || '-';
+          const note = item.emp_note || item.Emp_Note || '-';
+
+          const photo = item.emp_photo || item.Emp_Photo || '';
+          const frontID = item.emp_front_ID || item.Emp_Front_ID || item.emp_front_id || '';
+          const backID = item.emp_back_ID || item.Emp_Back_ID || item.emp_back_id || '';
+
+          const card = document.createElement('div');
+          card.className = "bg-white text-black shadow rounded mb-6 page-break relative";
+          card.style.width = "190mm";
+          card.style.minHeight = "270mm";
+          card.style.display = "flex";
+          card.style.flexDirection = "column";
+          card.style.justifyContent = "space-between";
+          card.style.webkitPrintColorAdjust = "exact";
+          card.style.printColorAdjust = "exact";
+
+          card.innerHTML = `
+            <div>
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important; color: white; padding: 14px 18px; position: relative; border-bottom: 4px solid #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background-color: #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+                
+                <div class="flex justify-between items-center">
+                  <div class="space-y-0.5">
+                    <div class="flex items-center gap-3">
+                      <h1 class="text-lg font-black tracking-wide" style="color: #ffffff;">هوتێل جیلا</h1>
+                      <span class="text-gray-400 font-light">|</span>
+                      <h2 class="text-sm font-bold text-amber-400" dir="ltr">JILLA HOTEL</h2>
+                      <span class="text-gray-400 font-light">|</span>
+                      <h2 class="text-xs font-bold text-gray-200">فندق جيلا</h2>
+                    </div>
+                    <p class="text-[11px] text-gray-300 font-medium">هەولێر - شەقامی ٦٠م - بەرامبەر نەخۆشخانەی بار</p>
+                    <div class="flex items-center gap-4 text-[11px] font-mono pt-0.5 text-amber-300" dir="ltr">
+                      <span>📞 0750 941 5656</span>
+                      <span>📞 0770 941 5656</span>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col items-center justify-center p-1">
+                    <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" crossorigin="anonymous" alt="Jilla Hotel Logo" style="width: 100px; height: 60px; object-fit: contain; filter: brightness(0) invert(1);">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Title Bar -->
+              <div style="background-color: #f1f5f9 !important; padding: 6px 16px; border-bottom: 2px solid #0f172a; text-align: right; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <h2 class="text-xs font-black text-slate-900">کارمەندی هوتێل: ${name}</h2>
+              </div>
+
+              <!-- Table Without 'خەسڵەت' -->
+              <div class="p-4">
+                <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #0f172a; font-size: 11px;">
+                  <thead>
+                    <tr style="background-color: #0f172a; color: #ffffff;">
+                      <th style="border: 1px solid #1e293b; padding: 6px 10px; text-align: right; width: 35%;">زانیاری</th>
+                      <th style="border: 1px solid #1e293b; padding: 6px 10px; text-align: right; width: 65%;">وردەکاری</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">ناوی کارمەند</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; color: #0f172a;">${name}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">تەمەن (بەروار)</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;">${dob}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">ژمارەی موبایل</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;">${phone}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">نەتەوە</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px;">${nation}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">شوێنی لەدایکبوون</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px;">${lob}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">شوێنی نیشتەجێبوون</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px;">${locate}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">بەرواری دەستبەکاربوون</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;">${hireDate}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">بەرواری وازهێنان</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px;">${fireDate}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">کاتی دەستپێک</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;">${startTime}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">کاتی تەواوبوون</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace;">${endTime}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">پۆزشن</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; color: #1d4ed8;">${pos}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">مووچە</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-family: monospace; font-weight: bold; color: #15803d;">${salary}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #cbd5e1;">
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px; font-weight: bold; background-color: #f8fafc;">تێبینی</td>
+                      <td style="border: 1px solid #cbd5e1; padding: 5px 10px;">${note}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Photos Section -->
+                <div style="margin-top: 14px; padding: 10px; border: 1.5px solid #0f172a; background: #f8fafc; border-radius: 6px; page-break-inside: avoid;">
+                  <h3 style="font-size: 11px; font-weight: 800; text-align: center; margin-bottom: 10px; color: #0f172a;">وێنەی کارمەند و ناسنامە</h3>
+                  <div style="display: flex; justify-content: center; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                    <div style="text-align: center; width: 125px;">
+                      <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">وێنەی کارمەند</p>
+                      <div style="width: 120px; height: 140px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        ${photo ? `<img src="${photo}" style="max-width:100%; max-height:100%; object-fit:contain;">` : `<span style="font-size:9px;color:#9ca3af;">بێ وێنە</span>`}
+                      </div>
+                    </div>
+                    <div style="text-align: center; width: 190px;">
+                      <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">ناسنامە (پێشەوە)</p>
+                      <div style="width: 185px; height: 115px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        ${frontID ? `<img src="${frontID}" style="max-width:100%; max-height:100%; object-fit:contain;">` : `<span style="font-size:9px;color:#9ca3af;">تۆمار نەکراوە</span>`}
+                      </div>
+                    </div>
+                    <div style="text-align: center; width: 190px;">
+                      <p style="font-size: 10px; font-weight: 700; margin-bottom: 5px; color: #334155;">ناسنامە (پشتەوە)</p>
+                      <div style="width: 185px; height: 115px; margin: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        ${backID ? `<img src="${backID}" style="max-width:100%; max-height:100%; object-fit:contain;">` : `<span style="font-size:9px;color:#9ca3af;">تۆمار نەکراوە</span>`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top: 5px;">
+              <div class="px-6 pb-1 flex justify-between items-end text-xs">
+                <div></div>
+                <div class="text-center" style="margin-top: -5px;">
+                  <p class="font-bold text-slate-900 text-sm mb-0.5">${currentManager}</p>
+                  <p class="font-bold text-gray-700">بەڕێوەبەری گشتی هوتێل جیلا</p>
+                  <p class="text-[10px] text-gray-500 mt-0.5">بۆ کاری باری کارمەندان و بەڕێوەبەردنی هوتێل</p>
+                </div>
+              </div>
+              <div style="background-color: #0f172a !important; height: 12px; width: 100%; position: relative; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <div style="position: absolute; top: 0; right: 0; width: 40%; height: 100%; background-color: #f59e0b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></div>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      document.getElementById('allCvModal').classList.add('hidden');
+    }
+
+    function closeAllCvModal() {
+      document.getElementById('allCvModal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

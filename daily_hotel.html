@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+  <script src="auth.js"></script>
+  <script src="theme.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ڕاپۆرتی ڕۆژانەی هوتێل جیلا</title>
+
+    <!-- 1. Favicon (لۆگی تاب) - گۆڕدرا بۆ icon.png -->
+    <link rel="icon" type="image/png" href="./images/icon.png">
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Vazirmatn Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+
+    <!-- 2. Background Class & Custom Styles -->
+    <style>
+      body { font-family: 'Vazirmatn', sans-serif; }
+
+      .dashboard-bg {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+      }
+      
+      .ultra-light-placeholder::placeholder {
+        color: #d1d5db !important;
+        opacity: 0.6 !important;
+      }
+
+      @media print {
+        body * {
+          visibility: hidden !important;
+        }
+        #printArea, #printArea * {
+          visibility: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #printArea {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 5mm !important;
+          box-shadow: none !important;
+          background: white !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+</head>
+
+<body class="dashboard-bg min-h-screen p-2 md:p-4 select-none text-slate-100 text-xs">
+
+    <!-- 3. FULL SCREEN LOADING OVERLAY (ئۆڤەرلەی لۆدینگ) -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+      <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+      <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+    </div>
+
+    <!-- 4. CUSTOM DELETE CONFIRMATION MODAL (مۆداڵ / نامەی سڕینەوە) -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+      <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+          ⚠️
+        </div>
+        <div class="space-y-1">
+          <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+          <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەو پەڕەیە؟</p>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+          <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header Section -->
+    <div class="max-w-6xl mx-auto flex justify-between items-center mb-3 no-print">
+      <div class="flex items-center gap-3 bg-white/95 px-4 py-1.5 rounded-lg shadow-md border border-gray-200">
+        <h1 class="text-sm font-bold text-blue-900" id="pageTitle">هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ١)</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="switchPage(1)" id="btnPage1" class="bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition">
+          📄 page 1 ژوورە چیک ئاوتەکان
+        </button>
+        <button onclick="switchPage(2)" id="btnPage2" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition">
+          📄 page 2 معلومات
+        </button>
+        <button onclick="switchPage(3)" id="btnPage3" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition">
+          🚙 سەیارەکان
+        </button>
+        <button id="resetBtn" type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition">
+          🗑️ سفر کردنەوە
+        </button>
+        <button onclick="window.print()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded shadow-md transition">
+          🖨️ پرێنت (Print)
+        </button>
+        <a href="main.html" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-3 py-2 rounded shadow-md border border-gray-600 no-underline">
+          گەڕانەوە
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Container / Printable Area -->
+    <div class="max-w-6xl mx-auto bg-white text-slate-900 rounded-xl p-4 shadow-2xl border border-gray-200" id="printArea">
+      
+      <!-- Top Header for Print -->
+      <div class="flex justify-between items-center border-b-2 border-black pb-2 mb-3">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-3 bg-white/95 px-3 py-1.5 rounded-lg shadow-md border border-gray-200">
+            <img id="hotelLogo" src="images/logo_black.png" onerror="this.src='images/logo_black.png';" alt="Jilla Hotel Logo" class="h-8 w-auto object-contain">
+            <h1 id="lbl_topBrand" class="text-black font-black text-sm">هوتێل جیلا - Jilla Hotel</h1>
+          </div>
+          <span class="text-[10px] text-gray-700 font-bold px-1" dir="rtl">
+            العنوان : أربيل &nbsp; - &nbsp; شارع 60 متر &nbsp; - &nbsp; مقابل مستشفى بار
+          </span>
+        </div>
+        <div class="text-center flex flex-col gap-1 items-center">
+          <div class="flex items-center gap-2 justify-center">
+            <label class="text-xs font-bold">تاریخ:</label>
+            <input type="text" id="daily_barwar" class="border border-gray-400 rounded px-2 py-0.5 text-xs font-mono text-center w-28" placeholder="YYYY-MM-DD">
+          </div>
+          <div class="flex items-center gap-2 justify-center">
+            <label class="text-xs font-bold">يوم:</label>
+            <input type="text" id="daily_day_name" class="border border-gray-400 rounded px-2 py-0.5 text-xs font-bold text-center w-28" placeholder="الخميس...">
+          </div>
+        </div>
+        <div class="text-left text-xs font-mono text-gray-700">
+          <p>📞 07509415656</p>
+          <p>📞 07709415656</p>
+        </div>
+      </div>
+
+      <!-- Table Page 1 -->
+      <div class="overflow-x-auto" id="tablePage1">
+        <table class="w-full border-collapse border border-black text-right text-xs">
+          <thead>
+            <tr class="bg-amber-100 text-black font-extrabold text-center">
+              <th colspan="3" class="border border-black p-1.5 text-center text-xs">check out</th>
+              <th colspan="2" class="border border-black p-1.5 text-center text-xs">حساب/ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody id="roomsTableBody">
+            <!-- Dynamically populated via JavaScript -->
+          </tbody>
+          <tfoot>
+            <tr class="bg-amber-50 font-bold">
+              <td class="border border-black p-1 text-center text-xs">check out:</td>
+              <td id="totalRoomsCount" class="border border-black p-1 text-center font-mono text-sm bg-white">0</td>
+              <td colspan="3" class="border border-black p-1"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Table Page 2 -->
+      <div class="overflow-x-auto hidden" id="tablePage2">
+        <table class="w-full border-collapse border border-black text-right text-xs">
+          <thead>
+            <tr class="bg-amber-100 text-black font-extrabold text-center">
+              <th class="border border-black p-2 w-28 whitespace-nowrap">رقم الغرفة</th>
+              <th class="border border-black p-2 w-[35%]">الحساب</th>
+              <th class="border border-black p-2 w-[30%]">رقم التليفون</th>
+              <th class="border border-black p-2 w-[30%]">سيارة</th>
+            </tr>
+          </thead>
+          <tbody id="roomsTableBody2">
+            <!-- Dynamically populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Page 3 (Cars) -->
+      <div class="overflow-x-auto hidden" id="tablePage3">
+        <table class="w-full border-collapse border border-black text-right text-xs">
+          <thead>
+            <tr class="bg-amber-100 text-black font-extrabold text-center">
+              <th class="border border-black p-2 w-[30%]">نوع السيارة</th>
+              <th class="border border-black p-2 w-[25%]">رقم</th>
+              <th class="border border-black p-2 w-20">رقم الغرفة</th>
+              <th class="border border-black p-2 w-[35%]">ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody id="roomsTableBody3">
+            <!-- Dynamically populated via JavaScript -->
+          </tbody>
+          <tfoot>
+            <tr class="bg-amber-50 font-bold">
+              <td class="border border-black p-1 text-center text-xs">إجمالي عدد السيارات:</td>
+              <td id="totalCarsCount" class="border border-black p-1 text-center font-mono text-sm bg-white">0</td>
+              <td colspan="2" class="border border-black p-1"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Footer Arabic Info with spacing -->
+      <div class="flex justify-between items-center mt-6 pt-3 text-xs border-t border-gray-400 text-gray-700 tracking-wide" dir="rtl">
+        <div>
+          <p class="font-bold">العنوان : أربيل &nbsp; - &nbsp; شارع 60 متر &nbsp; - &nbsp; مقابل مستشفى بار</p>
+        </div>
+        <div class="text-left font-mono">
+          <p>هاتف : 07509415656 &nbsp; - &nbsp; 07709415656</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script>
+      const SUPABASE_URL = "https://jrdakonfokyayzlcqnef.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG";
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const totalRows = 27;
+      let existingRecordsMap = {};
+      let currentActivePage = 1;
+
+      const allowedRooms = [
+        "101", "102", "103", "104", "105", "106", "107", "108", "109",
+        "201", "202", "203", "204", "205", "206", "207", "208", "209",
+        "301", "302", "303", "304", "305", "306", "307", "308", "309"
+      ];
+
+      // توخمەکانی مۆداڵ و لۆدینگ
+      const resetBtn = document.getElementById('resetBtn');
+      const confirmModal = document.getElementById('confirmModal');
+      const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+      const confirmOkBtn = document.getElementById('confirmOkBtn');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+
+      const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+      function setDayNameByDate(dateString) {
+        if (!dateString) return;
+        const d = new Date(dateString);
+        if (!isNaN(d.getTime())) {
+          const dayName = arabicDays[d.getDay()];
+          document.getElementById('daily_day_name').value = dayName;
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('daily_barwar').value = today;
+        setDayNameByDate(today);
+
+        document.getElementById('daily_barwar').addEventListener('change', (e) => {
+          setDayNameByDate(e.target.value);
+          fetchDailyData();
+        });
+
+        await fetchDailyData();
+      });
+
+      // ١. کاتێک کلیک لە دوگمەی سفرکردنەوە دەکەیت، مۆداڵەکە پیشان بدە
+      resetBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+      });
+
+      // ٢. کاتێک کلیک لە دوگمەی "پەشیمانبوونەوە" دەکەیت، مۆداڵەکە بشارەوە
+      confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+      });
+
+      // ٣. کاتێک کلیک لە دوگمەی "بەڵێ، بسڕەوە" دەکەیت، سڕینەوە دەستپێبکە
+      confirmOkBtn.addEventListener('click', () => {
+        // شاردنەوەی مۆداڵەکە
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+
+        // نیشاندانی ئۆڤەرلەی لۆدینگ
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+
+        setTimeout(() => {
+          // ئەنجامدانی سڕینەوەی خانەکان
+          clearCurrentTableData();
+
+          // شاردنەوەی لۆدینگ
+          loadingOverlay.classList.add('hidden');
+          loadingOverlay.classList.remove('flex');
+        }, 800);
+      });
+
+      function handleKeyDown(event, currentRowIndex, currentColumnIndex, tableId) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          const nextRowIndex = currentRowIndex + 1;
+          if (nextRowIndex < totalRows) {
+            const table = document.getElementById(tableId);
+            const nextRowInputs = table.querySelectorAll('tbody tr')[nextRowIndex].querySelectorAll('input');
+            if (nextRowInputs[currentColumnIndex]) {
+              nextRowInputs[currentColumnIndex].focus();
+              nextRowInputs[currentColumnIndex].select();
+            }
+          }
+        }
+      }
+
+      function switchPage(pageNum) {
+        currentActivePage = pageNum;
+        const table1 = document.getElementById('tablePage1');
+        const table2 = document.getElementById('tablePage2');
+        const table3 = document.getElementById('tablePage3');
+        
+        const btn1 = document.getElementById('btnPage1');
+        const btn2 = document.getElementById('btnPage2');
+        const btn3 = document.getElementById('btnPage3');
+        
+        const title = document.getElementById('pageTitle');
+
+        table1.classList.add('hidden');
+        table2.classList.add('hidden');
+        table3.classList.add('hidden');
+        
+        btn1.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        btn2.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        btn3.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+
+        if (pageNum === 1) {
+          table1.classList.remove('hidden');
+          btn1.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ١)';
+        } else if (pageNum === 2) {
+          table2.classList.remove('hidden');
+          btn2.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ٢)';
+        } else if (pageNum === 3) {
+          table3.classList.remove('hidden');
+          btn3.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (سەیارەکان)';
+        }
+      }
+
+      async function fetchDailyData() {
+        const selectedDate = document.getElementById('daily_barwar').value;
+        existingRecordsMap = {};
+
+        try {
+          const { data, error } = await supabaseClient
+            .from('1-tbl-daily-hotel')
+            .select('*')
+            .eq('daily-barwar', selectedDate);
+
+          if (!error && data) {
+            data.forEach((item, index) => {
+              existingRecordsMap[index] = item;
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching data:", err);
+        }
+
+        renderTable();
+        renderTable2();
+        renderTable3();
+      }
+
+      function renderTable() {
+        const tbody = document.getElementById('roomsTableBody');
+        let html = '';
+
+        for (let i = 0; i < totalRows; i++) {
+          const item = existingRecordsMap[i] || {};
+          const notZhur = item['daily-not-zhur'] || '';
+          const roomNo = item['room_no'] || '';
+          const hisab = item['daily-hisab'] || '';
+          const notHisab = item['daily-not-hisab'] || '';
+          const recordId = item['id'] || '';
+
+          html += `
+            <tr class="hover:bg-gray-50" style="height: 30px;" data-index="${i}" data-id="${recordId}">
+              <td class="border border-black p-0.5 w-[35%]">
+                <input type="text" value="${notZhur}" onkeydown="handleKeyDown(event, ${i}, 0, 'tablePage1')" class="w-full bg-transparent px-1 text-xs focus:outline-none not-zhur-input" placeholder="...">
+              </td>
+              <td class="border border-black p-0.5 text-center font-bold bg-white w-16">
+                <input type="text" value="${roomNo}" onblur="validateRoom(this)" oninput="updateRoomCount()" onkeydown="handleKeyDown(event, ${i}, 1, 'tablePage1')" class="w-full bg-transparent text-center font-bold text-xs focus:outline-none room-input" placeholder="غرفة">
+              </td>
+              <td class="border border-black p-0.5 text-center bg-white w-16"></td>
+              <td class="border border-black p-0.5 text-center w-[25%]">
+                <input type="text" value="${hisab}" onkeydown="handleKeyDown(event, ${i}, 3, 'tablePage1')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none hisab-input" placeholder="...">
+              </td>
+              <td class="border border-black p-0.5 w-[24%]">
+                <input type="text" value="${notHisab}" onkeydown="handleKeyDown(event, ${i}, 4, 'tablePage1')" class="w-full bg-transparent px-1 text-xs focus:outline-none not-hisab-input" placeholder="...">
+              </td>
+            </tr>
+          `;
+        }
+
+        tbody.innerHTML = html;
+        updateRoomCount();
+      }
+
+      function renderTable2() {
+        const tbody = document.getElementById('roomsTableBody2');
+        let html = '';
+
+        for (let i = 0; i < totalRows; i++) {
+          html += `
+            <tr class="hover:bg-gray-50" style="height: 30px;">
+              <td class="border border-black p-0.5 text-center font-bold bg-white w-28">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 0, 'tablePage2')" class="w-full bg-transparent text-center font-bold text-xs focus:outline-none ultra-light-placeholder" placeholder="غرفة">
+              </td>
+              <td class="border border-black p-0.5 text-center w-[35%]">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 1, 'tablePage2')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none ultra-light-placeholder" placeholder="حساب">
+              </td>
+              <td class="border border-black p-0.5 text-center w-[30%]">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 2, 'tablePage2')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none ultra-light-placeholder" placeholder="تليفون">
+              </td>
+              <td class="border border-black p-0.5 text-center w-[30%]">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 3, 'tablePage2')" class="w-full bg-transparent text-center text-xs focus:outline-none ultra-light-placeholder" placeholder="سيارة">
+              </td>
+            </tr>
+          `;
+        }
+
+        tbody.innerHTML = html;
+      }
+
+      function renderTable3() {
+        const tbody = document.getElementById('roomsTableBody3');
+        let html = '';
+
+        for (let i = 0; i < totalRows; i++) {
+          html += `
+            <tr class="hover:bg-gray-50" style="height: 30px;">
+              <td class="border border-black p-0.5 text-center bg-white w-[30%]">
+                <input type="text" oninput="updateCarCount()" onkeydown="handleKeyDown(event, ${i}, 0, 'tablePage3')" class="w-full bg-transparent text-center text-xs focus:outline-none ultra-light-placeholder car-input" placeholder="نوع السيارة">
+              </td>
+              <td class="border border-black p-0.5 text-center w-[25%]">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 1, 'tablePage3')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none ultra-light-placeholder" placeholder="رقم">
+              </td>
+              <td class="border border-black p-0.5 text-center font-bold bg-white w-20">
+                <input type="text" onblur="validateCarRoom(this)" onkeydown="handleKeyDown(event, ${i}, 2, 'tablePage3')" class="w-full bg-transparent text-center font-bold text-xs focus:outline-none ultra-light-placeholder" placeholder="غرفة">
+              </td>
+              <td class="border border-black p-0.5 w-[35%]">
+                <input type="text" onkeydown="handleKeyDown(event, ${i}, 3, 'tablePage3')" class="w-full bg-transparent px-1 text-xs focus:outline-none ultra-light-placeholder" placeholder="ملاحظة">
+              </td>
+            </tr>
+          `;
+        }
+
+        tbody.innerHTML = html;
+        updateCarCount();
+      }
+
+      function updateRoomCount() {
+        const roomInputs = document.querySelectorAll('#tablePage1 .room-input');
+        let count = 0;
+        roomInputs.forEach(input => {
+          if (input.value.trim() !== '') {
+            count++;
+          }
+        });
+        document.getElementById('totalRoomsCount').innerText = count;
+      }
+
+      function updateCarCount() {
+        const carInputs = document.querySelectorAll('#tablePage3 .car-input');
+        let count = 0;
+        carInputs.forEach(input => {
+          if (input.value.trim() !== '') {
+            count++;
+          }
+        });
+        document.getElementById('totalCarsCount').innerText = count;
+      }
+
+      function validateRoom(input) {
+        const val = input.value.trim();
+        if (val !== "" && !allowedRooms.includes(val)) {
+          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
+          input.value = "";
+          input.focus();
+        }
+        updateRoomCount();
+      }
+
+      function validateCarRoom(input) {
+        const val = input.value.trim();
+        if (val !== "" && !allowedRooms.includes(val)) {
+          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
+          input.value = "";
+          input.focus();
+        }
+      }
+
+      function clearCurrentTableData() {
+        let targetSelector = '';
+        if (currentActivePage === 1) {
+          targetSelector = '#roomsTableBody tr';
+        } else if (currentActivePage === 2) {
+          targetSelector = '#roomsTableBody2 tr';
+        } else if (currentActivePage === 3) {
+          targetSelector = '#roomsTableBody3 tr';
+        }
+
+        const rows = document.querySelectorAll(targetSelector);
+        rows.forEach(tr => {
+          const inputs = tr.querySelectorAll('input');
+          inputs.forEach(input => input.value = '');
+        });
+        
+        updateRoomCount();
+        updateCarCount();
+      }
+    </script>
+</body>
+</html>

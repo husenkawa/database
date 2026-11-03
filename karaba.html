@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+  <script src="auth.js"></script>
+  <script src="theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>فۆرمی کارەبا - هوتێل جیلا</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- هێنانی کتێبخانەی Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- فونتی Vazirmatn -->
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Vazirmatn', sans-serif; }
+    
+    /* ستایلی باکگراوەندی سەرەکی نوێ */
+    .dashboard-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+    }
+    
+    .access-row {
+      height: 28px !important;
+      max-height: 28px !important;
+    }
+    .access-cell {
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+      line-height: 1.2 !important;
+    }
+    
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #reportModal, #reportModal *, #cvModal, #cvModal *, #printArea, #printArea * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      #reportModal, #cvModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+      #printArea, #cvPrintArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        box-shadow: none !important;
+        background: white !important;
+      }
+      .page-break {
+        page-break-after: always;
+        break-after: page;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="dashboard-bg min-h-screen p-3 md:p-6 select-none text-slate-100">
+
+  <!-- FULL SCREEN LOADING OVERLAY (کۆدی لۆدینگ) -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+  </div>
+
+  <!-- CUSTOM DELETE CONFIRMATION MODAL (جۆری پشاندانی نامەی سڕینەوە) -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+      <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+        ⚠️
+      </div>
+      <div class="space-y-1">
+        <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+        <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سڕینەوەی ئەم توخمە؟</p>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+        <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Section -->
+  <div class="flex w-full items-center justify-between gap-2 mb-3">
+    <div class="flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 rounded-lg shadow-md border border-gray-200 dark:border-slate-800" style="display:inline-flex; align-items:center; gap:8px; height:40px; min-height:40px; max-height:40px; width:fit-content; max-width:100%; padding:4px 8px; box-sizing:border-box; overflow:hidden;">
+      <img id="hotelLogo" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="Jilla Hotel Logo" class="w-8 h-8 max-w-8 max-h-8 object-contain shrink-0 block dark:hidden" style="width:180px;height:180px;max-width:180px;max-height:100px;object-fit:contain;">
+      <img id="hotelLogoDark" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_white.png" crossorigin="anonymous" alt="Jilla Hotel Logo" class="w-8 h-8 max-w-8 max-h-8 object-contain shrink-0 hidden dark:block" style="width:100px;height:100px;max-width:100px;max-height:100px;object-fit:contain;">
+      <h1 id="lbl_topBrand" class="text-black dark:text-white font-black text-xs leading-tight">هوتێل جیلا - Jilla Hotel</h1>
+    </div>
+	
+    <a href="main.html" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-3 py-1.5 rounded shadow-md border border-gray-600 no-underline">
+      گەڕانەوە
+    </a>
+  </div>
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto no-print space-y-3">
+    
+    <!-- Top Action Bar -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-3 shadow-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-3 text-slate-800">
+      <h2 class="text-lg font-extrabold text-blue-900">فۆرمی کارەبا - هوتێل جیلا</h2>
+      
+      <!-- Filters & Search -->
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="filterMang" onchange="filterKarabaData()" class="bg-white border border-gray-300 text-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500">
+          <option value="">هەموو مانگەکان</option>
+          <option value="یەک 1">یەک 1</option>
+          <option value="دوو 2">دوو 2</option>
+          <option value="سێ 3">سێ 3</option>
+          <option value="چار 4">چار 4</option>
+          <option value="پێنج 5">پێنج 5</option>
+          <option value="شەش 6">شەش 6</option>
+          <option value="حەوت 7">حەوت 7</option>
+          <option value="هەشت 8">هەشت 8</option>
+          <option value="نۆ 9">نۆ 9</option>
+          <option value="دە 10">دە 10</option>
+          <option value="یازدە 11">یازدە 11</option>
+          <option value="دوازدە 12">دوازدە 12</option>
+        </select>
+        <select id="filterHawbash" onchange="filterKarabaData()" class="bg-white border border-gray-300 text-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500">
+          <option value="">هەموو شوێنەکان</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <button onclick="openKarabaModal()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1 justify-center flex-1 md:flex-none text-xs">
+          <span>+ تۆمارکردنی وەصلی نوێ</span>
+        </button>
+        <button onclick="openHawbashModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1 justify-center flex-1 md:flex-none text-xs">
+          <span>+ تۆمارکردنی هاوبەش</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-3 shadow-2xl border border-gray-200 overflow-hidden text-slate-800">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-blue-900 text-white text-xs access-row">
+              <th class="access-cell border text-center"></th>
+              <th class="access-cell border">شوێن</th>
+              <th class="access-cell border">مانگ</th>
+              <th class="access-cell border">بەروار</th>
+              <th class="access-cell border text-center">وەحدەی سەرفکراو</th>
+              <th class="access-cell border text-center">کۆی تێچوو (IQD)</th>
+              <th class="access-cell border text-center">واصل/غیر واصل</th>
+              <th class="access-cell border text-center">وێنە</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody" class="text-xs font-medium">
+            <tr><td colspan="8" class="text-center p-4 text-gray-500">چاوەڕوانبن، داتا دەهێنرێت...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Status Bar & Bottom Action -->
+  <footer class="max-w-7xl mx-auto bg-slate-800 border border-slate-700 px-4 py-2 text-xs text-slate-400 flex justify-between items-center rounded-xl mt-3 no-print">
+    <div id="rowCount">پسوولەی تۆمارکراو هەیە: 0</div>
+    <div>Jilla Hotel Management System</div>
+  </footer>
+
+
+  <!-- HAWBASH MODAL (فۆرمی تۆمارکردنی هاوبەش) -->
+  <div id="hawbashModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-50 no-print">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-4 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-3 relative">
+      
+      <!-- نامەی سەوزی سەرکەوتن لەسەر فۆرمەکە -->
+      <div id="hawbashSuccessAlert" class="hidden bg-emerald-500 text-white font-bold text-xs p-2.5 rounded-lg text-center shadow-md transition-all duration-300 mb-2">
+        ✓ خەزن کرا
+      </div>
+
+      <div class="flex justify-between items-center border-b border-gray-200 pb-1.5">
+        <h3 id="hawbashModalTitle" class="text-base font-bold text-emerald-800">تۆمارکردنی هاوبەش</h3>
+        <button onclick="closeHawbashModal()" class="text-gray-500 hover:text-red-600 font-bold text-base">✕</button>
+      </div>
+
+      <form id="hawbashForm" onsubmit="saveHawbash(event)" class="space-y-2 text-xs">
+        <input type="hidden" id="editHawbashOriginalShwen">
+        <div>
+          <label class="block font-bold text-gray-700 mb-0.5">شوێن *</label>
+          <input type="text" id="hawbash_shwen" required placeholder="ناوی شوێن بنووسە..." class="w-full bg-gray-50 border border-gray-300 rounded-md p-1.5">
+        </div>
+        <div>
+          <label class="block font-bold text-gray-700 mb-0.5">ناوی پارە دەر *</label>
+          <input type="text" id="hawbash_paradar" required placeholder="ناوی پارەدەر بنووسە..." class="w-full bg-gray-50 border border-gray-300 rounded-md p-1.5">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t mt-2">
+          <button type="button" onclick="resetHawbashForm()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md">پەشیمانبوونەوە</button>
+          <button type="submit" id="hawbashSubmitBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-1.5 rounded-md font-bold">تۆمارکردن</button>
+        </div>
+      </form>
+
+      <!-- Table of Hawbash List Inside Modal -->
+      <div class="border-t pt-3 mt-3">
+        <div class="flex justify-between items-center mb-2">
+          <h4 class="font-bold text-xs text-gray-700">لیستی هاوبەشە تۆمارکراوەکان:</h4>
+          <span id="hawbashCountBadge" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px]">هاوبەش: 0</span>
+        </div>
+        <div class="max-h-48 overflow-y-auto border rounded-lg">
+          <table class="w-full text-right border-collapse text-[11px]">
+            <thead>
+              <tr class="bg-emerald-800 text-white">
+                <th class="p-1.5 border text-center w-16">کردارەکان</th>
+                <th class="p-1.5 border">شوێن</th>
+                <th class="p-1.5 border">ناوی پارە دەر</th>
+              </tr>
+            </thead>
+            <tbody id="hawbashModalTableBody">
+              <tr><td colspan="3" class="text-center p-2 text-gray-500">چاوەڕوانبن...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- KARABA MODAL (فۆرمی تۆمارکردنی کارەبا) -->
+  <div id="karabaModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-50 no-print">
+    <div class="bg-white text-slate-800 border border-gray-200 rounded-xl p-4 max-w-xl w-full max-h-[96vh] overflow-y-auto shadow-2xl space-y-3 relative">
+      
+      <!-- نامەی سەوزی سەرکەوتن لەسەر فۆرمی کارەبا -->
+      <div id="karabaSuccessAlert" class="hidden bg-emerald-500 text-white font-bold text-xs p-2.5 rounded-lg text-center shadow-md transition-all duration-300 mb-2">
+        ✓ خەزن کرا
+      </div>
+
+      <div class="flex justify-between items-center border-b border-gray-200 pb-1.5">
+        <h3 id="modalTitle" class="text-base font-bold text-blue-900">تۆمارکردنی وەصلی کارەبا</h3>
+        <button onclick="closeKarabaModal()" class="text-gray-500 hover:text-red-600 font-bold text-base">✕</button>
+      </div>
+      
+      <form id="karabaForm" onsubmit="saveKaraba(event)" class="space-y-2 text-[11px]">
+        <input type="hidden" id="editKarabaId">
+        <input type="hidden" id="karaba_rasmsaat">
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">بەروار (yyyy/mm/dd)</label>
+            <input type="text" id="karaba_barwar" placeholder="2026/10/27" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800 font-mono">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">مانگ *</label>
+            <select id="karaba_mang" required class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+              <option value="">مانگ هەڵبژێرە...</option>
+              <option value="یەک 1">یەک 1</option>
+              <option value="دوو 2">دوو 2</option>
+              <option value="سێ 3">سێ 3</option>
+              <option value="چار 4">چار 4</option>
+              <option value="پێنج 5">پێنج 5</option>
+              <option value="شەش 6">شەش 6</option>
+              <option value="حەوت 7">حەوت 7</option>
+              <option value="هەشت 8">هەشت 8</option>
+              <option value="نۆ 9">نۆ 9</option>
+              <option value="دە 10">دە 10</option>
+              <option value="یازدە 11">یازدە 11</option>
+              <option value="دوازدە 12">دوازدە 12</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">شوێن *</label>
+            <select id="karaba_je" required onchange="onHawbashSelect()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 text-slate-800">
+              <option value="">شوێن هەڵبژێرە...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">ناوی پارە دەر</label>
+            <input type="text" id="karaba_paradar_display" readonly placeholder="خۆکار پڕدەبێتەوە..." class="w-full bg-gray-100 border border-gray-300 rounded-md p-1 text-blue-900 font-bold">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">وەحدەی پێشوو *</label>
+            <input type="number" id="karaba_wahda_qadem" required oninput="calculateKaraba()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 font-mono">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">وەحدەی نوێ *</label>
+            <input type="number" id="karaba_wahda_nwe" required oninput="calculateKaraba()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 font-mono">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-700 mb-0.5">نرخی وەحدە</label>
+            <input type="number" id="karaba_wahda_nrx" value="185" oninput="calculateKaraba()" class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 bg-blue-50 p-2 rounded-md">
+          <div>
+            <label class="block font-bold text-blue-900 mb-0.5">وەحدەی سەرفکراو</label>
+            <input type="number" id="karaba_wahda_sarfkraw" readonly class="w-full bg-white border border-blue-200 rounded-md p-1 text-blue-900 font-bold font-mono">
+          </div>
+          <div>
+            <label class="block font-bold text-emerald-900 mb-0.5">کۆی تێچوو (IQD)</label>
+            <input type="text" id="karaba_koy_techw" readonly class="w-full bg-white border border-emerald-200 rounded-md p-1 text-emerald-700 font-bold font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-gray-700 mb-0.5">واصل/غیر واصل *</label>
+          <select id="karaba_wasl" required class="w-full bg-gray-50 border border-gray-300 rounded-md p-1 font-bold">
+            <option value="واصل" class="text-green-600">واصل</option>
+            <option value="غیر واصل" class="text-red-600">غیر واصل</option>
+          </select>
+        </div>
+
+        <!-- ڕەسمی سەعات (خواری خوارەوە) -->
+        <div>
+          <label class="block font-bold text-gray-700 mb-0.5">ڕەسمی سەعات</label>
+          <div class="w-full h-20 bg-gray-50 border border-gray-300 rounded-md flex flex-col items-center justify-center relative overflow-hidden">
+            <img id="saatPreview" src="" alt="" class="w-full h-full object-cover hidden">
+            <div id="uploadSaatPlaceholder" class="flex flex-col items-center justify-center text-gray-400 p-1">
+              <span class="text-[10px]">ڕەسمی سەعات هەڵبژێرە...</span>
+              <input type="file" accept="image/*" onchange="handleSaatUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+            </div>
+          </div>
+          <div class="flex gap-1 mt-1">
+            <button type="button" id="removeSaatBtn" onclick="removeSaatFile()" class="hidden w-full bg-red-600 hover:bg-red-500 text-white py-0.5 rounded text-[9px]">سڕینەوەی وێنە ❌</button>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex justify-between items-center pt-2 border-t border-gray-200 mt-2">
+          <button type="button" id="modalPrintBtn" onclick="printCurrentModalRecord()" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded-md font-bold transition text-xs hidden">🖨️ پرێنت</button>
+          <div class="flex gap-2 mr-auto">
+            <button type="button" onclick="closeKarabaModal()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md transition text-xs">داخستن</button>
+            <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-1.5 rounded-md font-bold transition text-xs">تۆمارکردن</button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- IMAGE PREVIEW MODAL (پیشاندانی وێنەی گەورە) -->
+  <div id="imageModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl max-w-lg w-full p-3 shadow-2xl relative flex flex-col items-center">
+      <div class="flex justify-between items-center w-full pb-2 border-b mb-2">
+        <h3 class="text-sm font-bold text-blue-900">ڕەسمی سەعات</h3>
+        <button onclick="closeImageModal()" class="text-gray-500 hover:text-red-600 font-bold text-base">✕</button>
+      </div>
+      <img id="modalFullImage" src="" alt="ڕەسمی سەعات" class="max-h-[75vh] w-auto object-contain rounded border">
+    </div>
+  </div>
+
+
+  <!-- CV / Custom Professional Receipt Modal -->
+  <div id="cvModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col text-slate-900">
+      
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">وەصلی کارەبا</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">پرێنت (Print)</button>
+          <button onclick="closeCVModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">داخستن</button>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex justify-center">
+        <div id="cvPrintArea" class="bg-white text-black shadow relative" dir="rtl" style="width: 190mm; min-height: 270mm; padding: 0; display: flex; flex-direction: column; justify-content: space-between;">
+          
+          <div>
+            <!-- Custom Designed Professional Header -->
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px 24px; position: relative; border-bottom: 4px solid #f59e0b;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background-color: #f59e0b;"></div>
+              
+              <div class="flex justify-between items-center">
+                <!-- Right Side: Hotel Names & Contact Info -->
+                <div class="space-y-1">
+                  <div class="flex items-center gap-3">
+                    <h1 class="text-xl font-black tracking-wide" style="color: #ffffff;">هوتێل جیلا</h1>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-base font-bold text-amber-400" dir="ltr">JILLA HOTEL</h2>
+                    <span class="text-gray-400 font-light">|</span>
+                    <h2 class="text-sm font-bold text-gray-200">فندق جيلا</h2>
+                  </div>
+                  <p class="text-xs text-gray-300 font-medium">هەولێر - شەقامی ٦٠م - بەرامبەر نەخۆشخانەی بار</p>
+                  <div class="flex items-center gap-4 text-xs font-mono pt-1 text-amber-300" dir="ltr">
+                    <span>📞 0750 941 5656</span>
+                    <span>📞 0770 941 5656</span>
+                  </div>
+                </div>
+
+                <!-- Left Side: Jilla Hotel Logo -->
+                <div class="flex flex-col items-center justify-center gap-1">
+                  <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_white.png"
+                       crossorigin="anonymous" alt="Jilla Hotel Logo"
+                       style="width: 120px; height: 80px; object-fit: contain;">
+                  <span class="text-[10px] text-gray-300" dir="ltr">Electricity Bill</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Title Bar -->
+            <div style="background-color: #f1f5f9; padding: 16px 20px; border-bottom: 2px solid #0f172a;">
+              <div class="text-right">
+                <h2 id="cvTitleMain" class="text-sm font-black text-slate-900">تێچووی کارەبا بۆ مانگی (دوازدە 12) بۆ ساڵی (2026)</h2>
+              </div>
+              <div style="margin-top: 1cm;" class="text-center">
+                <p id="cvSubParadar" class="text-xs font-bold text-blue-900">تێچوو و سەرفکردنی کارەبا لە لایەن/ <span id="cvSubShwenName">...</span></p>
+              </div>
+            </div>
+
+            <!-- Main Content: Custom Table -->
+            <div class="p-6 space-y-6">
+              <div class="border-2 border-black rounded-lg overflow-hidden bg-white">
+                <table class="w-full text-right border-collapse text-xs">
+                  <tbody>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black w-1/3">وەحدەی پێشوو</td>
+                      <td class="p-2.5 font-mono font-bold text-slate-900 text-center border-l border-black w-1/3"><span id="cvQadem">--</span></td>
+                      <td class="p-2.5 font-mono font-bold text-gray-600 text-center w-1/3" dir="ltr">KWh</td>
+                    </tr>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black">وەحدەی ئێستا</td>
+                      <td class="p-2.5 font-mono font-bold text-slate-900 text-center border-l border-black"><span id="cvNwe">--</span></td>
+                      <td class="p-2.5 font-mono font-bold text-gray-600 text-center" dir="ltr">KWh</td>
+                    </tr>
+                    <tr class="border-b border-black">
+                      <td class="p-2.5 font-bold text-gray-800 border-l border-black">نرخی وەحدە</td>
+                      <td class="p-2.5 font-mono font-bold text-slate-900 text-center border-l border-black"><span id="cvNrx">--</span></td>
+                      <td class="p-2.5 font-mono font-bold text-gray-600 text-center" dir="ltr">IQD</td>
+                    </tr>
+                    <tr class="border-b border-black bg-blue-50">
+                      <td class="p-2.5 font-bold text-blue-900 border-l border-black">بڕی وەحدەی سەرفکراو</td>
+                      <td class="p-2.5 font-mono font-bold text-blue-800 text-center border-l border-black"><span id="cvSarfkraw">--</span></td>
+                      <td class="p-2.5 font-mono font-bold text-blue-700 text-center" dir="ltr">KWh</td>
+                    </tr>
+                    <tr class="bg-emerald-50">
+                      <td class="p-2.5 font-bold text-emerald-900 border-l border-black">کۆی تێچوو</td>
+                      <td class="p-2.5 font-mono font-bold text-emerald-700 text-center border-l border-black"><span id="cvKoyTechw">--</span></td>
+                      <td class="p-2.5 font-mono font-bold text-emerald-700 text-center" dir="ltr">IQD</td>
+                    </tr>
+                    <tr class="border-t border-black bg-amber-50">
+                      <td class="px-2 py-1.5 font-bold text-amber-900 border-l border-black text-[11px]">کۆی تێچوو بە نووسین</td>
+                      <td colspan="2" class="px-2 py-1.5 font-semibold text-amber-900 text-center leading-snug text-[11px]">
+                        <span id="cvKoyTechwWords" class="text-[11px]">--</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- وێنەی سەعات -->
+              <div class="flex flex-col items-center pt-2">
+                <div class="w-full max-w-lg bg-slate-100 border-2 border-black rounded-lg p-2 shadow-md flex flex-col items-center">
+                  <div class="bg-slate-200/90 border border-slate-300 px-4 py-1 rounded-md mb-2">
+                    <span class="text-xs font-bold text-slate-800">وێنەی سەعات</span>
+                  </div>
+                  <div class="w-full h-72 border border-slate-300 bg-white flex items-center justify-center overflow-hidden rounded">
+                    <img id="cvSaatImg" src="" alt="وێنەی سەعات" class="w-full h-full object-contain hidden">
+                    <span id="cvNoSaatText" class="text-xs text-gray-400">وێنەی سەعات تۆمار نەکراوە</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer Signatures -->
+          <div>
+            <div class="px-8 pb-4 flex justify-between items-end text-xs">
+              <div class="text-center">
+                <p id="footerParadarName" class="font-bold text-slate-900 text-sm mb-0.5">--</p>
+                <p id="footerParadarShwen" class="font-bold text-gray-700">پارەدەری --</p>
+              </div>
+
+              <div class="text-center bg-gray-50 border border-gray-300 px-3 py-1 rounded-md">
+                <span class="text-[10px] text-gray-500 block">بەروار:</span>
+                <span id="footerReportDate" class="font-mono font-bold text-slate-800 text-xs">--</span>
+              </div>
+
+              <div class="text-center">
+                <p id="cvManagerDisplay" class="font-bold text-slate-900 text-sm mb-0.5">محمود ابوبکر</p>
+                <p class="font-bold text-gray-700">بەڕێوەبەری گشتی هوتێل جیلا</p>
+              </div>
+            </div>
+            
+            <div style="background-color: #0f172a; height: 16px; width: 100%; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; right: 0; width: 40%; height: 100%; background-color: #f59e0b;"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <script>
+    const SUPABASE_URL = "https://jrdakonfokyayzlcqnef.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allKarabaData = [];
+    let hawbashList = [];
+    let currentSavedRecordId = null;
+    let activeRecordShwen = '';
+    let activeRecordMang = '';
+
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    let deleteActionCallback = null;
+
+    function showConfirmModal(message, callback) {
+      document.getElementById('confirmMessage').innerText = message;
+      deleteActionCallback = callback;
+      confirmModal.classList.remove('hidden');
+      confirmModal.classList.add('flex');
+    }
+
+    if (confirmCancelBtn) {
+      confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+        deleteActionCallback = null;
+      });
+    }
+
+    if (confirmOkBtn) {
+      confirmOkBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+        if (typeof deleteActionCallback === 'function') {
+          deleteActionCallback();
+        }
+        deleteActionCallback = null;
+      });
+    }
+
+    function showLoading(text = "خەزن دەکرێت...") {
+      document.getElementById('loadingText').innerText = text;
+      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('flex');
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('flex');
+    }
+
+    // فەنکشنی نیشاندانی نامەی سەوز لەسەر فۆرمەکە بەبێ پێویست بوون بە OK
+    function showInlineSuccess(alertId) {
+      const alertEl = document.getElementById(alertId);
+      if (alertEl) {
+        alertEl.classList.remove('hidden');
+        setTimeout(() => {
+          alertEl.classList.add('hidden');
+        }, 2000); // دوای 2 چرکە خۆی دەشارێتەوە
+      }
+    }
+
+    // نووسینی بڕی دیناری عێراقی بە وشە؛ ڕێککردنەوە بۆ نزیکترین ٢٥٠ دینار
+    function amountToSoraniWords(value) {
+      const raw = String(value ?? '').replace(/[٬،,]/g, '').replace(/[^\d.-]/g, '');
+      let amount = Number(raw);
+      if (!Number.isFinite(amount)) return '--';
+      amount = Math.max(0, Math.round(amount / 250) * 250);
+      amount = Math.floor(amount);
+
+      const ones = ['', 'یەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
+      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پانزە', 'شانزە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
+      const tens = ['', '', 'بیست', 'سی', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نەوەد'];
+
+      function underThousand(n) {
+        const parts = [];
+        const h = Math.floor(n / 100);
+        const r = n % 100;
+        if (h) parts.push(h === 1 ? 'سەد' : (h === 2 ? 'دووسەد' : ones[h] + 'سەد'));
+        if (r >= 10 && r < 20) parts.push(teens[r - 10]);
+        else {
+          const t = Math.floor(r / 10), o = r % 10;
+          if (t) parts.push(tens[t]);
+          if (o) parts.push(ones[o]);
+        }
+        return parts.join(' و ');
+      }
+
+      if (amount === 0) return 'سفر دینار';
+      const scales = [
+        [1000000000, 'ملیار'],
+        [1000000, 'ملیۆن'],
+        [1000, 'هەزار']
+      ];
+      const parts = [];
+      let rest = amount;
+      for (const [unit, label] of scales) {
+        const group = Math.floor(rest / unit);
+        if (group) {
+          parts.push(underThousand(group) + ' ' + label);
+          rest %= unit;
+        }
+      }
+      if (rest) parts.push(underThousand(rest));
+      return parts.join(' و ') + ' دینار عێراقی';
+    }
+
+    function formatCurrency(val) {
+      if (!val) return '0';
+      let clean = String(val).replace(/,/g, '').trim();
+      let num = Number(clean);
+      return isNaN(num) ? val : num.toLocaleString('en-US');
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      showLoading("داتاکان دەهێنرێن...");
+      await loadHawbashDropdown();
+      await fetchKarabaData();
+      hideLoading();
+    });
+
+    async function loadHawbashDropdown() {
+      try {
+        const { data, error } = await supabaseClient.from('tbl_karaba_hawbash').select('*');
+        if (!error && data) {
+          hawbashList = data;
+          const select = document.getElementById('karaba_je');
+          const filterSelect = document.getElementById('filterHawbash');
+          
+          let optionsHtml = '<option value="">شوێن هەڵبژێرە...</option>' + data.map(item => {
+            const shwen = item['hawbash_karaba_shwen'] || '';
+            return `<option value="${shwen}">${shwen}</option>`;
+          }).join('');
+          
+          let filterHtml = '<option value="">هەموو شوێنەکان</option>' + data.map(item => {
+            const shwen = item['hawbash_karaba_shwen'] || '';
+            return `<option value="${shwen}">${shwen}</option>`;
+          }).join('');
+
+          if (select) {
+            const previousSelection = select.value;
+            select.innerHTML = optionsHtml;
+            if (previousSelection && data.some(item => item.hawbash_karaba_shwen === previousSelection)) {
+              select.value = previousSelection;
+              onHawbashSelect();
+            } else {
+              onHawbashSelect();
+            }
+          }
+          if (filterSelect) filterSelect.innerHTML = filterHtml;
+
+          renderHawbashModalTable();
+        }
+      } catch (err) {
+        console.error("Error loading hawbash:", err);
+      }
+    }
+
+    function renderHawbashModalTable() {
+      const tbody = document.getElementById('hawbashModalTableBody');
+      const badge = document.getElementById('hawbashCountBadge');
+      if (!tbody) return;
+
+      if (badge) {
+        badge.innerText = `کۆی گشتی هاوبەشەکان: ${hawbashList.length}`;
+      }
+
+      if (hawbashList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center p-2 text-gray-500">هیچ هاوبەشێک نییە</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = hawbashList.map(item => {
+        const shwen = item.hawbash_karaba_shwen || '-';
+        const paradar = item.hawbash_karaba_paradar || '-';
+        const safeShwen = shwen.replace(/'/g, "\\'");
+        const safeParadar = paradar.replace(/'/g, "\\'");
+
+        return `
+          <tr class="border-b hover:bg-gray-50">
+            <td class="p-1.5 border text-center space-x-1 space-x-reverse">
+              <button onclick="confirmDeleteHawbash('${safeShwen}')" title="سڕینەوە" class="bg-red-600 hover:bg-red-700 text-white font-bold w-5 h-5 rounded inline-flex items-center justify-center text-xs">✕</button>
+              <button onclick="editHawbash('${safeShwen}', '${safeParadar}')" title="دەستکاری" class="bg-amber-500 hover:bg-amber-600 text-white font-bold w-5 h-5 rounded inline-flex items-center justify-center text-xs">✏️</button>
+            </td>
+            <td class="p-1.5 border font-bold text-gray-700">${shwen}</td>
+            <td class="p-1.5 border">${paradar}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function editHawbash(shwen, paradar) {
+      document.getElementById('editHawbashOriginalShwen').value = shwen;
+      document.getElementById('hawbash_shwen').value = shwen;
+      document.getElementById('hawbash_paradar').value = paradar;
+      document.getElementById('hawbashModalTitle').innerText = 'دەستکاریکردنی هاوبەش';
+      document.getElementById('hawbashSubmitBtn').innerText = 'نوێکردنەوە';
+    }
+
+    function resetHawbashForm() {
+      document.getElementById('hawbashForm').reset();
+      document.getElementById('editHawbashOriginalShwen').value = '';
+      document.getElementById('hawbashModalTitle').innerText = 'تۆمارکردنی هاوبەش';
+      document.getElementById('hawbashSubmitBtn').innerText = 'تۆمارکردن';
+    }
+
+    function confirmDeleteHawbash(shwen) {
+      showConfirmModal(`ئایا دڵنیایت لە سڕینەوەی شوێنی (${shwen})؟`, async () => {
+        showLoading("دەسڕێتەوە...");
+        const { error } = await supabaseClient.from('tbl_karaba_hawbash').delete().eq('hawbash_karaba_shwen', shwen);
+        hideLoading();
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          await loadHawbashDropdown();
+        }
+      });
+    }
+
+    function onHawbashSelect() {
+      const selectedShwen = document.getElementById('karaba_je').value;
+      const found = hawbashList.find(x => x.hawbash_karaba_shwen === selectedShwen);
+      const paradarInput = document.getElementById('karaba_paradar_display');
+      if (found) {
+        paradarInput.value = found.hawbash_karaba_paradar || '';
+      } else {
+        paradarInput.value = '';
+      }
+    }
+
+    async function fetchKarabaData() {
+      try {
+        const { data, error } = await supabaseClient.from('tbl_karaba').select('*').order('karaba_id', { ascending: false });
+        const tbody = document.getElementById('dataTableBody');
+        if (error) {
+          if(tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-amber-600">کێشە لە هێنانی داتا: ${error.message}</td></tr>`;
+          return;
+        }
+
+        allKarabaData = data || [];
+        renderKarabaTable(allKarabaData);
+      } catch (err) {
+        console.error("Fetch Exception:", err);
+      }
+    }
+
+    function renderKarabaTable(data) {
+      const tbody = document.getElementById('dataTableBody');
+      const rowCountEl = document.getElementById('rowCount');
+      if(rowCountEl) rowCountEl.innerText = `پسوولەی تۆمارکراو هەیە: ${data.length}`;
+
+      if (!tbody) return;
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-500">هیچ پسوولەیەک نەدۆزرایەوە.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => {
+        const id = item.karaba_id;
+        const je = item.karaba_je || '-';
+        const mang = item.karaba_mang || '-';
+        const barwar = item.karaba_barwar || '-';
+        const sarfkraw = formatCurrency(item.karaba_wahda_sarfkraw);
+        const koyTechw = formatCurrency(item.karaba_koy_techw);
+        const wasl = item.karaba_wasl || 'واصل';
+        const waslClass = wasl === 'واصل' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200' : 'text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200';
+        
+        const hasImage = item.karaba_rasmsaat && item.karaba_rasmsaat.trim() !== '';
+        let imageStatusText = '';
+        if (hasImage) {
+          const safeUrl = item.karaba_rasmsaat.replace(/"/g, '&quot;');
+          imageStatusText = `<span onclick="openImageModal('${safeUrl}')" class="text-green-700 font-bold underline cursor-pointer hover:text-green-900">وێنە تۆمارە</span>`;
+        } else {
+          imageStatusText = '<span class="text-red-500">وێنە تۆمار نییە</span>';
+        }
+
+        return `
+          <tr class="hover:bg-gray-50 border-b border-gray-200 access-row">
+            <td class="access-cell border text-center space-x-1 space-x-reverse">
+              <button onclick="printSingleRecord(${id})" class="bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">پرێنت</button>
+              <button onclick="openEditKarabaModal(${id})" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">دەستکاری</button>
+              <button onclick="confirmDeleteRecord(${id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">سڕینەوە</button>
+            </td>
+            <td class="access-cell border font-bold text-gray-700">${je}</td>
+            <td class="access-cell border">${mang}</td>
+            <td class="access-cell border font-mono">${barwar}</td>
+            <td class="access-cell border text-center font-mono text-blue-800 font-bold">${sarfkraw}</td>
+            <td class="access-cell border text-center font-mono text-emerald-700 font-bold">${koyTechw} IQD</td>
+            <td class="access-cell border text-center font-bold"><span class="${waslClass}">${wasl}</span></td>
+            <td class="access-cell border text-center text-[11px]">${imageStatusText}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterKarabaData() {
+      const mangVal = document.getElementById('filterMang').value;
+      const hawbashVal = document.getElementById('filterHawbash').value;
+
+      let filtered = allKarabaData.filter(item => {
+        let matchMang = !mangVal || String(item.karaba_mang) === String(mangVal);
+        let matchHawbash = !hawbashVal || item.karaba_je === hawbashVal;
+        return matchMang && matchHawbash;
+      });
+
+      renderKarabaTable(filtered);
+    }
+
+    function getDefaultDate() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      return `${yyyy}/${mm}/${dd}`;
+    }
+
+    /* --- Image Preview Modal Functions --- */
+    function openImageModal(url) {
+      document.getElementById('modalFullImage').src = url;
+      const modal = document.getElementById('imageModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    /* --- Hawbash Modal Functions --- */
+    function openHawbashModal() {
+      resetHawbashForm();
+      renderHawbashModalTable();
+      const modal = document.getElementById('hawbashModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeHawbashModal() {
+      const modal = document.getElementById('hawbashModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    async function saveHawbash(event) {
+      event.preventDefault();
+      const shwen = document.getElementById('hawbash_shwen').value.trim();
+      const paradar = document.getElementById('hawbash_paradar').value.trim();
+      const originalShwen = document.getElementById('editHawbashOriginalShwen').value;
+
+      const payload = {
+        hawbash_karaba_shwen: shwen,
+        hawbash_karaba_paradar: paradar
+      };
+
+      showLoading("خەزن دەکرێت...");
+      let error;
+      if (originalShwen) {
+        const res = await supabaseClient.from('tbl_karaba_hawbash').update(payload).eq('hawbash_karaba_shwen', originalShwen);
+        error = res.error;
+      } else {
+        const res = await supabaseClient.from('tbl_karaba_hawbash').insert([payload]);
+        error = res.error;
+      }
+      hideLoading();
+
+      if (error) {
+        alert('کێشە لە خەزنکردن: ' + error.message);
+      } else {
+        resetHawbashForm();
+        await loadHawbashDropdown();
+        showInlineSuccess('hawbashSuccessAlert'); // پیشاندانی نامەی سەوز لەسەر فۆرمی هاوبەش
+      }
+    }
+
+    /* --- Karaba Modal Functions --- */
+    function openKarabaModal() {
+      const form = document.getElementById('karabaForm');
+      if(form) form.reset();
+      document.getElementById('editKarabaId').value = '';
+      currentSavedRecordId = null;
+      document.getElementById('modalPrintBtn').classList.add('hidden');
+      document.getElementById('modalTitle').innerText = 'تۆمارکردنی وەصلی کارەبا';
+      document.getElementById('karaba_barwar').value = getDefaultDate();
+      const currentMonth = new Date().getMonth() + 1;
+      const monthOption = document.querySelector(`#karaba_mang option[value$=" ${currentMonth}"]`);
+      document.getElementById('karaba_mang').value = monthOption ? monthOption.value : '';
+      document.getElementById('karaba_wahda_nrx').value = '185';
+      document.getElementById('karaba_wahda_sarfkraw').value = '';
+      document.getElementById('karaba_koy_techw').value = '';
+      document.getElementById('karaba_paradar_display').value = '';
+      removeSaatFile();
+      
+      const modal = document.getElementById('karabaModal');
+      if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function openEditKarabaModal(id) {
+      const item = allKarabaData.find(x => Number(x.karaba_id) === Number(id));
+      if (!item) return;
+
+      currentSavedRecordId = item.karaba_id;
+      document.getElementById('modalPrintBtn').classList.remove('hidden');
+
+      document.getElementById('editKarabaId').value = item.karaba_id;
+      document.getElementById('karaba_barwar').value = item.karaba_barwar || getDefaultDate();
+      document.getElementById('karaba_mang').value = item.karaba_mang || '';
+      document.getElementById('karaba_je').value = item.karaba_je || '';
+      onHawbashSelect();
+      document.getElementById('karaba_wahda_qadem').value = item.karaba_wahda_qadem || 0;
+      document.getElementById('karaba_wahda_nwe').value = item.karaba_wahda_nwe || 0;
+      document.getElementById('karaba_wahda_nrx').value = item.karaba_wahda_nrx || 185;
+      document.getElementById('karaba_wahda_sarfkraw').value = item.karaba_wahda_sarfkraw || 0;
+      document.getElementById('karaba_koy_techw').value = formatCurrency(item.karaba_koy_techw) || 0;
+      document.getElementById('karaba_rasmsaat').value = item.karaba_rasmsaat || '';
+      document.getElementById('karaba_wasl').value = item.karaba_wasl || 'واصل';
+
+      if (item.karaba_rasmsaat) {
+        document.getElementById('saatPreview').src = item.karaba_rasmsaat;
+        document.getElementById('saatPreview').classList.remove('hidden');
+        document.getElementById('uploadSaatPlaceholder').classList.add('hidden');
+        document.getElementById('removeSaatBtn').classList.remove('hidden');
+      } else {
+        removeSaatFile();
+      }
+
+      document.getElementById('modalTitle').innerText = 'دەستکاریکردنی وەصلی کارەبا';
+      const modal = document.getElementById('karabaModal');
+      if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeKarabaModal() {
+      const modal = document.getElementById('karabaModal');
+      if(modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function handleSaatUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64 = e.target.result;
+        document.getElementById('karaba_rasmsaat').value = base64;
+        const preview = document.getElementById('saatPreview');
+        preview.src = base64;
+        preview.classList.remove('hidden');
+        document.getElementById('uploadSaatPlaceholder').classList.add('hidden');
+        document.getElementById('removeSaatBtn').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeSaatFile() {
+      document.getElementById('karaba_rasmsaat').value = '';
+      const preview = document.getElementById('saatPreview');
+      preview.src = '';
+      preview.classList.add('hidden');
+      document.getElementById('uploadSaatPlaceholder').classList.remove('hidden');
+      document.getElementById('removeSaatBtn').classList.add('hidden');
+    }
+
+    function calculateKaraba() {
+      const qadem = parseFloat(document.getElementById('karaba_wahda_qadem').value) || 0;
+      const nwe = parseFloat(document.getElementById('karaba_wahda_nwe').value) || 0;
+      const nrx = parseFloat(document.getElementById('karaba_wahda_nrx').value) || 185;
+
+      const sarfkraw = Math.max(0, nwe - qadem);
+      const koyTechw = sarfkraw * nrx;
+
+      document.getElementById('karaba_wahda_sarfkraw').value = sarfkraw;
+      document.getElementById('karaba_koy_techw').value = formatCurrency(koyTechw);
+    }
+
+    async function saveKaraba(event) {
+      event.preventDefault();
+
+      const mang = document.getElementById('karaba_mang').value;
+      const qadem = document.getElementById('karaba_wahda_qadem').value;
+      const nwe = document.getElementById('karaba_wahda_nwe').value;
+      const je = document.getElementById('karaba_je').value;
+
+      if (!mang || qadem === '' || nwe === '' || !je) {
+        alert('تکایە خانە سەرەکییەکان پڕبکەرەوە (مانگ، وەحدەی پێشوو، وەحدەی نوێ، شوێن)!');
+        return;
+      }
+
+      const editId = document.getElementById('editKarabaId').value;
+      const rawKoyTechw = document.getElementById('karaba_koy_techw').value.replace(/,/g, '');
+
+      const payload = {
+        karaba_barwar: document.getElementById('karaba_barwar').value.trim(),
+        karaba_mang: mang,
+        karaba_je: je,
+        karaba_wahda_qadem: parseFloat(qadem) || 0,
+        karaba_wahda_nwe: parseFloat(nwe) || 0,
+        karaba_wahda_nrx: parseFloat(document.getElementById('karaba_wahda_nrx').value) || 185,
+        karaba_wahda_sarfkraw: parseFloat(document.getElementById('karaba_wahda_sarfkraw').value) || 0,
+        karaba_koy_techw: parseFloat(rawKoyTechw) || 0,
+        karaba_rasmsaat: document.getElementById('karaba_rasmsaat').value.trim(),
+        karaba_wasl: document.getElementById('karaba_wasl').value
+      };
+
+      showLoading("خەزن دەکرێت...");
+      let error;
+      if (editId) {
+        const res = await supabaseClient.from('tbl_karaba').update(payload).eq('karaba_id', editId);
+        error = res.error;
+        currentSavedRecordId = editId;
+      } else {
+        const res = await supabaseClient.from('tbl_karaba').insert([payload]).select();
+        error = res.error;
+        if (!error && res.data && res.data.length > 0) {
+          currentSavedRecordId = res.data[0].karaba_id;
+          document.getElementById('editKarabaId').value = currentSavedRecordId;
+        }
+      }
+      hideLoading();
+
+      if (error) {
+        alert('کێشە لە خەزنکردن: ' + error.message);
+      } else {
+        document.getElementById('modalPrintBtn').classList.remove('hidden');
+        await fetchKarabaData();
+        showInlineSuccess('karabaSuccessAlert'); // پیشاندانی نامەی سەوز لەسەر فۆرمی کارەبا
+      }
+    }
+
+    function confirmDeleteRecord(id) {
+      showConfirmModal('ئایا دڵنیایت لە سڕینەوەی ئەو وەصلە؟', async () => {
+        showLoading("دەسڕێتەوە...");
+        const { error } = await supabaseClient.from('tbl_karaba').delete().eq('karaba_id', id);
+        hideLoading();
+        if (error) {
+          alert('کێشە لە سڕینەوە: ' + error.message);
+        } else {
+          fetchKarabaData();
+        }
+      });
+    }
+
+    /* --- PRINT FROM MODAL --- */
+    function printCurrentModalRecord() {
+      if (!currentSavedRecordId) {
+        alert('سەرەتا پێویستە وەصلەکە تۆمار بکەیت پاشان پرێنتی بکەیت!');
+        return;
+      }
+      printSingleRecord(currentSavedRecordId);
+    }
+
+    /* --- SINGLE PRINT GENERATION --- */
+    function printSingleRecord(id) {
+      const item = allKarabaData.find(x => Number(x.karaba_id) === Number(id));
+      if (!item) return;
+
+      activeRecordShwen = item.karaba_je || 'نەناسراو';
+      activeRecordMang = item.karaba_mang || 'نەناسراو';
+      const barwar = item.karaba_barwar || '-';
+      
+      let yearPart = '-';
+      if (barwar) {
+        const parts = barwar.split(/[\/\-]/);
+        if (parts.length > 0 && parts[0].length === 4) {
+          yearPart = parts[0];
+        } else {
+          yearPart = barwar;
+        }
+      }
+
+      const foundHawbash = hawbashList.find(h => h.hawbash_karaba_shwen === activeRecordShwen);
+      const paradarName = foundHawbash ? (foundHawbash.hawbash_karaba_paradar || '-') : '-';
+
+      document.getElementById('cvTitleMain').innerText = `تێچووی کارەبا بۆ مانگی (${activeRecordMang}) بۆ ساڵی (${yearPart})`;
+      document.getElementById('cvSubShwenName').innerText = activeRecordShwen;
+
+      document.getElementById('cvQadem').innerText = formatCurrency(item.karaba_wahda_qadem);
+      document.getElementById('cvNwe').innerText = formatCurrency(item.karaba_wahda_nwe);
+      document.getElementById('cvNrx').innerText = formatCurrency(item.karaba_wahda_nrx || 185);
+      document.getElementById('cvSarfkraw').innerText = formatCurrency(item.karaba_wahda_sarfkraw);
+      document.getElementById('cvKoyTechw').innerText = formatCurrency(item.karaba_koy_techw);
+      document.getElementById('cvKoyTechwWords').innerText = amountToSoraniWords(document.getElementById('cvKoyTechw').innerText);
+
+      const saatImgVal = item.karaba_rasmsaat || '';
+      const imgEl = document.getElementById('cvSaatImg');
+      const noTextEl = document.getElementById('cvNoSaatText');
+      if (saatImgVal) {
+        imgEl.src = saatImgVal;
+        imgEl.classList.remove('hidden');
+        noTextEl.classList.add('hidden');
+      } else {
+        imgEl.src = '';
+        imgEl.classList.add('hidden');
+        noTextEl.classList.remove('hidden');
+      }
+
+      document.getElementById('footerParadarName').innerText = paradarName;
+      document.getElementById('footerParadarShwen').innerText = `پارەدەری ${activeRecordShwen}`;
+      document.getElementById('footerReportDate').innerText = barwar;
+
+      document.getElementById('cvModal').classList.remove('hidden');
+    }
+
+    function closeCVModal() {
+      document.getElementById('cvModal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

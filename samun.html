@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+  <script src="auth.js"></script>
+  <script src="theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تۆماری صمون - هوتێل جیلا</title>
+
+  <!-- Favicon (لۆگۆی تاب) -->
+  <link rel="icon" type="image/png" href="./images/icon.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <!-- هێنانی کتێبخانەی Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Vazirmatn', sans-serif; }
+    
+    /* ستایلی باکگراوەندی سەرەکی نوێ */
+    .dashboard-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+    }
+    .access-row {
+      height: 23.3px !important;
+      max-height: 23.3px !important;
+    }
+    .access-cell {
+      padding-top: 1px !important;
+      padding-bottom: 1px !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+      line-height: 1.2 !important;
+    }
+    
+    /* ڕێکخستنی پرێنت بۆ ئەوەی بە تەواوی پەڕەی A4 پڕ بکاتەوە و ڕەنگەکان و باکگراوند چاپ بکات */
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body * {
+        visibility: hidden !important;
+      }
+      #reportModal, #reportModal * {
+        visibility: visible !important;
+      }
+      #reportModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+      #printArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        box-shadow: none !important;
+        background: white !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="dashboard-bg min-h-screen p-4 md:p-8 select-none text-slate-100 text-xs flex flex-col items-center justify-start gap-y-4 pb-12">
+
+  <!-- FULL SCREEN LOADING OVERLAY -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+  </div>
+
+  <!-- CUSTOM DELETE CONFIRMATION MODAL -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+      <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+        ⚠️
+      </div>
+      <div class="space-y-1">
+        <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+        <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سڕینەوەی ئەم تۆمارە؟</p>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+        <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Section -->
+  <div class="w-full max-w-5xl mx-auto flex justify-between items-center no-print">
+    <div class="flex items-center gap-3 bg-gradient-to-r from-slate-900 to-blue-950 text-white px-5 py-2.5 rounded-xl shadow-lg border border-amber-500/30">
+      <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_white.png" alt="لۆگۆی هوتێل جیلا" class="h-8 w-auto object-contain">
+      <span class="font-black text-xs text-amber-400 tracking-wide">هوتێل جیلا - Jilla Hotel</span>
+    </div>
+    <a href="main.html" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-md border border-slate-700 transition">
+      گەڕانەوە
+    </a>
+  </div>
+
+  <!-- Main Container -->
+  <div class="w-full max-w-5xl mx-auto no-print space-y-4">
+    
+    <!-- Top Action Bar -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-900">
+      <h2 class="text-xl font-extrabold text-blue-950">تۆماری ڕۆژانەی صمون</h2>
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <button onclick="openModal()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 justify-center flex-1 md:flex-none text-xs">
+          <span>+ تۆماری نوێ</span>
+        </button>
+        <button onclick="generateReport()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 justify-center flex-1 md:flex-none text-xs">
+          <span>🖨️ ڕاپۆرتی مانگانە</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-4 shadow-xl border border-gray-200 flex flex-wrap items-center gap-3 text-slate-900">
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-bold text-gray-700">لە بەرواری:</label>
+        <input type="date" id="startDate" onchange="filterByDate()" class="px-3 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-bold text-gray-700">تا بەرواری:</label>
+        <input type="date" id="endDate" onchange="filterByDate()" class="px-3 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+    </div>
+
+    <!-- Totals Summary Card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="bg-slate-900 text-white p-3 rounded-xl shadow-lg flex justify-between items-center border-r-4 border-amber-500">
+        <span class="text-xs font-bold text-slate-300">کۆی گشتی عدد:</span>
+        <span id="totalDana" class="text-lg font-black text-amber-400">0</span>
+      </div>
+      <div class="bg-slate-900 text-white p-3.5 rounded-xl shadow-lg flex flex-col justify-between border-r-4 border-emerald-500 gap-1.5">
+        <div class="flex justify-between items-center w-full">
+          <span class="text-xs font-bold text-slate-300">کۆی گشتی حیساب:</span>
+          <span id="totalHisab" class="text-lg font-black text-emerald-400">0.000</span>
+        </div>
+        <div class="w-full text-left border-t border-slate-800 pt-1 text-[11px] text-slate-200 font-semibold truncate" id="totalHisabInWordsMain">
+          سفر دینار
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white/95 backdrop-blur rounded-xl p-4 shadow-2xl border border-gray-200 overflow-hidden text-slate-900">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-amber-400 text-xs access-row border-b-2 border-amber-500">
+              <th class="access-cell border-b border-slate-700 text-center w-12">ژمارە</th>
+              <th class="access-cell border-b border-slate-700 text-center"></th>
+              <th class="access-cell border-b border-slate-700">بەروار</th>
+              <th class="access-cell border-b border-slate-700">ڕۆژ</th>
+              <th class="access-cell border-b border-slate-700">عدد</th>
+              <th class="access-cell border-b border-slate-700">حیساب</th>
+            </tr>
+          </thead>
+          <tbody id="samunTableBody" class="text-xs font-medium">
+            <tr><td colspan="6" class="text-center p-2 text-gray-500">چاوەڕوانبن، داتا دەهێنرێت...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Form -->
+  <div id="samunModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 no-print text-slate-900">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 relative">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 id="modalTitle" class="text-lg font-extrabold text-blue-900">تۆمارکردنی صمون</h3>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-red-600 font-bold text-lg">✕</button>
+      </div>
+
+      <form id="samunForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+        <input type="hidden" id="recordId" value="">
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">بەروار:</label>
+          <input type="date" id="samunDate" required onchange="updateDayName()"
+                 class="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <div class="bg-blue-50 p-2 rounded border border-blue-200 flex justify-between items-center">
+          <span class="text-xs font-bold text-blue-800">ڕۆژ:</span>
+          <span id="dayNameDisplay" class="text-xs font-extrabold text-blue-900">-</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">عدد:</label>
+          <input type="number" id="samunDana" required oninput="calculateHisab()"
+                 class="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                 placeholder="ژمارەی صمون بنووسە...">
+        </div>
+
+        <div class="bg-green-50 p-3 rounded border border-green-200">
+          <div class="text-xs font-bold text-green-800 mb-1">حیساب:</div>
+          <div id="hisabResult" class="text-lg font-black text-green-900">0.000</div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="submit" id="submitBtn" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 rounded shadow transition text-xs">
+            تۆمارکردن
+          </button>
+          <button type="button" onclick="closeModal()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold px-3 py-2 rounded transition text-xs">
+            داخستن
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Report (A4 Preview & Printable) -->
+  <div id="reportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto text-slate-900">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-4 shadow-2xl relative my-4 max-h-[95vh] flex flex-col">
+      
+      <!-- Report Modal Controls -->
+      <div class="flex justify-between items-center mb-3 pb-2 border-b flex-shrink-0 no-print">
+        <h3 class="text-base font-bold text-gray-800">ڕاپۆرتی مانگانە</h3>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">پرێنت (Print)</button>
+          <button onclick="closeReportModal()" class="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow transition">داخستن</button>
+        </div>
+      </div>
+
+      <!-- Printable A4 Content Area -->
+      <div class="overflow-y-auto flex-grow bg-gray-100 p-2 flex justify-center">
+        <div id="printArea" class="bg-white p-5 text-black shadow" dir="rtl" style="width: 190mm;">
+          
+          <!-- Unified Header -->
+          <div class="flex justify-between items-center bg-slate-100 text-slate-900 px-3 py-1.5 rounded-t-md border-b-2 border-slate-400 mb-3">
+            <div class="flex items-center gap-2">
+              <img src="images/logo_black.png" onerror="this.src='images/logo_black.png';" alt="لۆگۆی هوتێل" class="h-6 w-auto object-contain">
+              <span class="font-black text-xs text-slate-800">هوتێل جیلا[cite: 1]</span>
+            </div>
+            <div class="text-center">
+              <h1 class="text-xs font-black text-slate-900"><span id="reportMonthTitle"></span></h1>
+            </div>
+            <div></div>
+          </div>
+
+          <!-- Table -->
+          <table class="w-full text-right border-collapse border border-gray-300 mb-2 text-[11px]">
+            <thead>
+              <tr class="bg-slate-200 text-slate-950 font-bold border-b border-gray-400">
+                <th class="p-1 border border-gray-300 text-center w-8">ژمارە</th>
+                <th class="p-1 border border-gray-300">بەروار</th>
+                <th class="p-1 border border-gray-300">ڕۆژ</th>
+                <th class="p-1 border border-gray-300 text-center">عدد</th>
+                <th class="p-1 border border-gray-300 text-center">حیساب</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <!-- Data Rows -->
+            </tbody>
+            <tfoot>
+              <tr class="bg-slate-100 text-slate-900 font-black border-t-2 border-slate-400">
+                <td colspan="3" class="p-1 border border-gray-300 text-left text-slate-800">کۆی گشتی:</td>
+                <td id="reportTotalDana" class="p-1 border border-gray-300 text-center font-bold">0</td>
+                <td id="reportTotalHisab" class="p-1 border border-gray-300 text-center font-bold text-slate-900">0.000</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <!-- Number spelling row below totals -->
+          <div class="border border-gray-300 rounded p-1.5 mb-3 text-xs font-bold bg-slate-50 flex items-center justify-between border-r-4 border-slate-600">
+            <span class="text-slate-700">کۆی گشتی بە نوسین:</span>
+            <span id="totalHisabInWords" class="text-slate-900 font-extrabold text-xs"></span>
+          </div>
+
+          <!-- Unified Footer / Signature -->
+          <div class="flex justify-between items-center mt-4 pt-2 text-xs font-bold border-t border-slate-400 bg-slate-50 p-1.5 rounded-b-md">
+            <div class="text-slate-800">بەڕێوەبەری گشتی هوتێل جیلا[cite: 1]: <span id="managerNameDisplay" class="font-normal underline mr-2 text-slate-900">چاوەڕوانبن...</span></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://jrdakonfokyayzlcqnef.supabase.co'; 
+    const SUPABASE_KEY = 'sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG';
+
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const TABLE_NAME = '3-tbl-samun';
+    let samunList = [];
+    let deleteIdPending = null; 
+
+    const monthTextMap = {
+      1: 'مانگی یەک (01)', 2: 'مانگی دوو (02)', 3: 'مانگی سێ (03)', 4: 'مانگی چوار (04)',
+      5: 'مانگی پێنج (05)', 6: 'مانگی شەش (06)', 7: 'مانگی حەوت (07)', 8: 'مانگی هەشت (08)',
+      9: 'مانگی نۆ (09)', 10: 'مانگی دە (10)', 11: 'مانگی یازدە (11)', 12: 'مانگی دوازدە (12)'
+    };
+
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    window.onload = function() {
+      setDefaultDate();
+      setMonthlyFilterDefault();
+      fetchManagerName();
+    };
+
+    confirmCancelBtn.addEventListener('click', () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+      deleteIdPending = null;
+    });
+
+    confirmOkBtn.addEventListener('click', async () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+
+      if (!deleteIdPending) return;
+
+      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('flex');
+
+      const { error } = await _supabase
+        .from(TABLE_NAME)
+        .delete()
+        .eq('samun-id', deleteIdPending);
+
+      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('flex');
+
+      if (error) {
+        alert('هەڵە لە سڕینەوە: ' + error.message);
+        return;
+      }
+
+      deleteIdPending = null;
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      fetchSamunData(startDate, endDate);
+    });
+
+    function setDefaultDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      
+      document.getElementById('samunDate').value = `${year}-${month}-${day}`;
+      updateDayName();
+    }
+
+    function setMonthlyFilterDefault() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+
+      const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const lastDayObj = new Date(year, month + 1, 0);
+      const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDayObj.getDate()).padStart(2, '0')}`;
+
+      document.getElementById('startDate').value = firstDay;
+      document.getElementById('endDate').value = lastDay;
+
+      fetchSamunData(firstDay, lastDay);
+    }
+
+    function updateDayName() {
+      const dateVal = document.getElementById('samunDate').value;
+      if (!dateVal) return;
+
+      const dateObj = new Date(dateVal + 'T00:00:00');
+      const dayIndex = dateObj.getDay(); 
+      
+      const dayNamesMap = {
+        0: 'یەکشەممە', 1: 'دووشەممە', 2: 'سێشەممە', 3: 'چار شەممە', 
+        4: 'پێنجشەممە', 5: 'جومعه', 6: 'شەممە'
+      };
+
+      document.getElementById('dayNameDisplay').innerText = dayNamesMap[dayIndex];
+    }
+
+    function calculateHisab() {
+      const dana = parseFloat(document.getElementById('samunDana').value) || 0;
+      const nrxHazar = 8; 
+      const result = dana / nrxHazar; 
+      
+      document.getElementById('hisabResult').innerText = result.toFixed(3);
+      return result;
+    }
+
+    async function fetchSamunData(start, end) {
+      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('flex');
+
+      // لێرەدا ascending: false کراوە تاوەکو نوێترین بەروار (کە ئەمرۆیە) بێتە پێشەوەی خشتەکە
+      let query = _supabase
+        .from(TABLE_NAME)
+        .select('*')
+        .order('samun-date', { ascending: false });
+
+      if (start && end) {
+        query = query.gte('samun-date', start).lte('samun-date', end);
+      }
+
+      const { data, error } = await query;
+
+      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('flex');
+
+      if (error) {
+        console.error('هەڵە لە هێنانی صمون:', error.message);
+        return;
+      }
+
+      samunList = data || [];
+      renderTable();
+      calculateTotals();
+    }
+
+    async function fetchManagerName() {
+      const { data, error } = await _supabase
+        .from('2_tbl_emp')
+        .select('emp_manager')
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        const manager = data[0].emp_manager || 'نادیار';
+        document.getElementById('managerNameDisplay').innerText = manager;
+      } else {
+        document.getElementById('managerNameDisplay').innerText = 'تۆمار نەکراوە';
+      }
+    }
+
+    function filterByDate() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      if (startDate && endDate) {
+        fetchSamunData(startDate, endDate);
+      }
+    }
+
+    function calculateTotals() {
+      let totalDana = 0;
+      let totalHisab = 0;
+
+      samunList.forEach(item => {
+        totalDana += parseFloat(item['samun-dana'] || 0);
+        totalHisab += parseFloat(item['samun-hisab'] || 0);
+      });
+
+      document.getElementById('totalDana').innerText = totalDana.toLocaleString();
+      document.getElementById('totalHisab').innerText = totalHisab.toFixed(3);
+      
+      const totalHisabInDinats = Math.round(totalHisab * 1000);
+      document.getElementById('totalHisabInWordsMain').innerText = numberToWordsKurdish(totalHisabInDinats);
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('samunTableBody');
+      tbody.innerHTML = '';
+
+      if (samunList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-2 text-gray-500">هیچ تۆمارێک لەم ماوەیەدا نەدۆزراوەتەوە</td></tr>`;
+        return;
+      }
+
+      samunList.forEach((item, index) => {
+        const id = item['samun-id'] ?? item.id;
+        const rawDate = item['samun-date'];
+        
+        const formattedDate = rawDate ? rawDate.replace(/-/g, '/') : '';
+        const dana = item['samun-dana'];
+        const hisab = item['samun-hisab'];
+
+        const dateObj = new Date(rawDate + 'T00:00:00');
+        const dayNamesMap = { 0: 'یەکشەممە', 1: 'دووشەممە', 2: 'سێشەممە', 3: 'چار شەممە', 4: 'پێنجشەممە', 5: 'جومعه', 6: 'شەممە' };
+        const dayName = dayNamesMap[dateObj.getDay()] || '';
+
+        const formattedHisab = hisab !== null && hisab !== undefined ? Number(hisab).toFixed(3) : '0.000';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 border-b border-gray-200 access-row";
+        tr.innerHTML = `
+          <td class="access-cell border text-center font-bold text-slate-700">${index + 1}</td>
+          <td class="access-cell border text-center space-x-1 space-x-reverse">
+            <button onclick="editRecord('${id}', '${rawDate}', '${dana}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">دەستکاری</button>
+            <button onclick="confirmDelete('${id}')" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">سڕینەوە</button>
+          </td>
+          <td class="access-cell border font-bold text-gray-700">${formattedDate}</td>
+          <td class="access-cell border text-blue-700 font-bold">${dayName}</td>
+          <td class="access-cell border">${dana}</td>
+          <td class="access-cell border font-mono text-green-700 font-bold">${formattedHisab}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function numberToWordsKurdish(num) {
+      if (isNaN(num) || num <= 0) return 'سفر دینار';
+
+      const ones = ['', 'يەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
+      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پازدە', 'شازدە', 'حەفدە', 'هەژدە', 'نۆزدە'];
+      const tens = ['', 'دە', 'بیست', 'سێچل', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نوە'];
+      const hundreds = ['', 'سەد', 'دوو سەد', 'سێ سەد', 'چوار سەد', 'پێنج سەد', 'شەش سەد', 'حەوت سەد', 'هەشت سەد', 'نۆ سەد'];
+
+      function convertHundreds(n) {
+        let str = '';
+        let h = Math.floor(n / 100);
+        let remainder = n % 100;
+        let t = Math.floor(remainder / 10);
+        let o = remainder % 10;
+
+        if (h > 0) {
+          str += hundreds[h];
+        }
+
+        if (remainder > 0) {
+          if (str !== '') str += ' و ';
+          if (remainder < 10) {
+            str += ones[remainder];
+          } else if (remainder >= 10 && remainder < 20) {
+            str += teens[remainder - 10];
+          } else {
+            str += tens[t];
+            if (o > 0) {
+              str += ' و ' + ones[o];
+            }
+          }
+        }
+        return str;
+      }
+
+      let integerPart = Math.floor(num);
+      let parts = [];
+
+      let billions = Math.floor(integerPart / 1000000000);
+      integerPart %= 1000000000;
+
+      let millions = Math.floor(integerPart / 1000000);
+      integerPart %= 1000000;
+
+      let thousands = Math.floor(integerPart / 1000);
+      integerPart %= 1000;
+
+      let remainder = integerPart;
+
+      if (billions > 0) {
+        parts.push(convertHundreds(billions) + ' ملیار');
+      }
+      if (millions > 0) {
+        parts.push(convertHundreds(millions) + ' ملیۆن');
+      }
+      if (thousands > 0) {
+        if (thousands === 1) {
+          parts.push('هەزار');
+        } else {
+          parts.push(convertHundreds(thousands) + ' هەزار');
+        }
+      }
+      if (remainder > 0) {
+        parts.push(convertHundreds(remainder));
+      }
+
+      return parts.join(' و ') + ' دینار';
+    }
+
+    async function generateReport() {
+      const startDateVal = document.getElementById('startDate').value;
+      if (!startDateVal) return;
+
+      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('flex');
+
+      const startDateObj = new Date(startDateVal + 'T00:00:00');
+      const monthNum = startDateObj.getMonth() + 1;
+      const yearNum = startDateObj.getFullYear();
+
+      // لە ڕاپۆرتدا بەروارەکان بە شێوازی کۆن بۆ نوێ (ascending: true) دەمێننەوە بۆ ئەوەی ڕیزبەندی ١، ٢، ٣... بێت
+      let { data, error } = await _supabase
+        .from(TABLE_NAME)
+        .select('*')
+        .gte('samun-date', document.getElementById('startDate').value)
+        .lte('samun-date', document.getElementById('endDate').value)
+        .order('samun-date', { ascending: true });
+
+      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('flex');
+
+      const monthText = monthTextMap[monthNum] || `مانگی (${monthNum})`;
+      document.getElementById('reportMonthTitle').innerText = `تۆماری صمونی ${monthText} / ${yearNum}`;
+
+      const tbody = document.getElementById('reportTableBody');
+      tbody.innerHTML = '';
+
+      let totalDana = 0;
+      let totalHisab = 0;
+      const reportList = data || [];
+
+      reportList.forEach((item, index) => {
+        const rawDate = item['samun-date'];
+        const formattedDate = rawDate ? rawDate.replace(/-/g, '/') : '';
+        const dana = item['samun-dana'] || 0;
+        const hisab = item['samun-hisab'] || 0;
+
+        totalDana += parseFloat(dana);
+        totalHisab += parseFloat(hisab);
+
+        const dateObj = new Date(rawDate + 'T00:00:00');
+        const dayNamesMap = { 0: 'یەکشەممە', 1: 'دووشەممە', 2: 'سێشەممە', 3: 'چار شەممە', 4: 'پێنجشەممە', 5: 'جومعه', 6: 'شەممە' };
+        const dayName = dayNamesMap[dateObj.getDay()] || '';
+
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-gray-300 text-center hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="p-1 border border-gray-300 text-slate-700">${index + 1}</td>
+          <td class="p-1 border border-gray-300 font-bold">${formattedDate}</td>
+          <td class="p-1 border border-gray-300">${dayName}</td>
+          <td class="p-1 border border-gray-300">${dana}</td>
+          <td class="p-1 border border-gray-300 font-mono font-bold text-slate-900">${Number(hisab).toFixed(3)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('reportTotalDana').innerText = totalDana.toLocaleString();
+      document.getElementById('reportTotalHisab').innerText = totalHisab.toFixed(3);
+      
+      const totalHisabInDinats = Math.round(totalHisab * 1000);
+      document.getElementById('totalHisabInWords').innerText = numberToWordsKurdish(totalHisabInDinats);
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    function openModal() {
+      document.getElementById('samunModal').classList.remove('hidden');
+      document.getElementById('recordId').value = '';
+      document.getElementById('modalTitle').innerText = 'تۆمارکردنی صمون';
+      document.getElementById('submitBtn').innerText = 'تۆمارکردن';
+      setDefaultDate();
+      document.getElementById('samunDana').value = '';
+      calculateHisab();
+    }
+
+    function closeModal() {
+      document.getElementById('samunModal').classList.add('hidden');
+    }
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      const id = document.getElementById('recordId').value;
+      const dateVal = document.getElementById('samunDate').value;
+      const danaVal = parseFloat(document.getElementById('samunDana').value);
+      const hisabVal = parseFloat(calculateHisab());
+
+      const payload = {
+        'samun-date': dateVal,
+        'samun-dana': danaVal,
+        'samun-hisab': hisabVal
+      };
+
+      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('flex');
+
+      if (id) {
+        const { error } = await _supabase
+          .from(TABLE_NAME)
+          .update(payload)
+          .eq('samun-id', id);
+
+        if (error) {
+          loadingOverlay.classList.add('hidden');
+          loadingOverlay.classList.remove('flex');
+          alert('هەڵە لە نوێکردنەوە: ' + error.message);
+          return;
+        }
+      } else {
+        const { error } = await _supabase
+          .from(TABLE_NAME)
+          .insert([payload]);
+
+        if (error) {
+          loadingOverlay.classList.add('hidden');
+          loadingOverlay.classList.remove('flex');
+          alert('هەڵە لە تۆمارکردن: ' + error.message);
+          return;
+        }
+      }
+
+      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('flex');
+
+      closeModal();
+      
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      fetchSamunData(startDate, endDate);
+    }
+
+    function editRecord(id, date, dana) {
+      openModal();
+      document.getElementById('recordId').value = id;
+      document.getElementById('samunDate').value, date;
+      document.getElementById('samunDana').value = dana;
+      document.getElementById('modalTitle').innerText = 'دەستکاریکردنی تۆمار';
+      document.getElementById('submitBtn').innerText = 'نوێکردنەوە';
+      updateDayName();
+      calculateHisab();
+    }
+
+    function confirmDelete(id) {
+      deleteIdPending = id;
+      confirmModal.classList.remove('hidden');
+      confirmModal.classList.add('flex');
+    }
+  </script>
+</body>
+</html>

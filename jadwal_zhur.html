@@ -1,0 +1,332 @@
+<!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+<script src="auth.js"></script>
+<script src="theme.js"></script>
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="./images/icon.png">
+
+<!-- Vazirmatn Font -->
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+
+<!-- Custom Styles & Print Setup -->
+<style>
+    body { font-family: 'Vazirmatn', sans-serif; }
+
+    /* Background Style */
+    .dashboard-bg {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
+    }
+
+    /* Editable cell hover effect */
+    td[contenteditable="true"]:hover {
+        background-color: #f0f8ff;
+        cursor: text;
+    }
+
+    .notes-box:empty:before {
+        content: "لێرە دەتوانیت تێبینی یان نووسینی دەستی بنووسیت...";
+        color: #9ca3af;
+    }
+
+    @media print {
+        body * {
+            visibility: hidden !important;
+        }
+        #printArea, #printArea * {
+            visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        #printArea {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 5mm !important;
+            box-shadow: none !important;
+            background: white !important;
+        }
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+
+
+<!-- FULL SCREEN LOADING OVERLAY -->
+<div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
+</div>
+
+<!-- CUSTOM DELETE CONFIRMATION MODAL -->
+<div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
+            ⚠️
+        </div>
+        <div class="space-y-1">
+            <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
+            <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەم پەڕەیە؟</p>
+        </div>
+        <div class="flex gap-2 pt-2">
+            <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
+            <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CONTAINER -->
+<div class="bg-white text-slate-900 p-6 rounded-xl shadow-2xl max-w-4xl w-full space-y-4" id="printArea">
+    
+    <!-- REPORT LOGO & HEADER -->
+    <div class="flex items-center justify-between bg-slate-900 text-white p-3 rounded-lg border border-slate-800">
+        <div class="flex items-center gap-3">
+            <img id="hotelLogo" src="images/logo_black.png" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';" alt="Jilla Hotel Logo" class="h-10 w-auto object-contain bg-white p-1 rounded">
+            <h1 class="font-black text-sm">هوتێل جیلا - Jilla Hotel</h1>
+        </div>
+        <div class="text-xs font-semibold text-slate-300">خشتەی ژوورەکان</div>
+    </div>
+
+    <!-- NOTES BOX -->
+    <div class="notes-box border-2 dashed border-amber-300 bg-amber-50/50 min-h-[50px] max-h-[120px] rounded-lg p-3 text-xs text-slate-700 outline-none" contenteditable="true"></div>
+
+    <!-- ROOMS TABLE -->
+    <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-center">
+            <tbody id="scheduleTableBody">
+                <!-- ================= طابق الاول ================= -->
+                <tr>
+                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الاول</td>
+                </tr>
+                <!-- 101 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">101 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 102 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">102 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">103</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">104</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">105</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">106</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">107</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">108</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 109 -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">109</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+
+                <!-- ================= طابق الثاني ================= -->
+                <tr>
+                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الثاني</td>
+                </tr>
+                <!-- 201 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">201 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 202 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">202 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">203</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">204</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">205</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">206</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">207</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">208</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 209 -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">209</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+
+                <!-- ================= طابق الثالث ================= -->
+                <tr>
+                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الثالث</td>
+                </tr>
+                <!-- 301 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">301 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 302 سويت -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">302 (سويت)</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
+                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">303</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">304</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">305</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">306</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">307</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">308</td>
+                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+                <!-- 309 -->
+                <tr>
+                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">309</td>
+                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
+                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ACTIONS BAR -->
+    <div class="flex gap-3 justify-center pt-2 no-print">
+        <button id="resetBtn" type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
+            🗑️ سفرکردنەوەی خانەکان
+        </button>
+        <button type="button" onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
+            🖨️ چاپکردن / داگرتن (Print / PDF)
+        </button>
+    </div>
+
+</div>
+
+<!-- SCRIPTS -->
+<script>
+    const resetBtn = document.getElementById('resetBtn');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const notesBox = document.querySelector('.notes-box');
+
+    // ١. پیشاندانی مۆداڵی سڕینەوە
+    resetBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+    });
+
+    // ٢. داخستنی مۆداڵ لەکاتی پەشیمانبوونەوە
+    confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+    });
+
+    // ٣. سڕینەوە و خاوێنکردنەوەی خانەکان لەگەڵ لۆدینگ
+    confirmOkBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+
+        setTimeout(() => {
+            // پاککردنەوەی تێبینییەکان
+            if(notesBox) notesBox.innerHTML = '';
+
+            // پاککردنەوەی خانەکانی دەستکاری کراو لە تەیبڵدا (جگە لە ستوونی سەرەکی ژوورەکان و ناوونیشانی نهۆمەکان)
+            const editableCells = document.querySelectorAll('#scheduleTableBody td[contenteditable="true"]:not(.room-col)');
+            editableCells.forEach(cell => {
+                cell.innerHTML = '';
+            });
+
+            loadingOverlay.classList.add('hidden');
+            loadingOverlay.classList.remove('flex');
+        }, 1000);
+    });
+</script>
