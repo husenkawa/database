@@ -682,7 +682,7 @@
         serviceRequired: "تکایە جۆری خزمەتگوزاری بنووسە!", fieldsRequired: "تکایە خانە سەرەکییەکان پڕبکەرەوە!", printSaveFirst: "تکایە سەرەتا وەصلەکە خەزن بکە پاشان پرێنت بکە!",
         invoiceDeleted: "وەصلەکە سڕایەوە!", roomSaved: "ژوورەکە سەرکەوتووانە پاشەکەوت کرا!", roomDeleted: "ژوورەکە سەرکەوتووانە سڕایەوە!", serviceDeleted: "خزمەتگوزارییەکە سەرکەوتووانە سڕایەوە!",
         editInvoiceTitle: "دەستکاری کردنی وەصلی ڕەقەم : {no} - بەڕێز: {name}",
-        printTitle: "پرێنتی وەصل", printButton: "🖨️ پرێنت کردن", closeX: "داخستن (X)", invoiceNumber: "ژمارەی فاتوورە", printRoomCount: "ژ.", printRooms: "ژوورەکان", printServices: "خزمەتگوزارییەکان", printQty: "دانە", printPrice: "نرخ", printTotal: "کۆی گشتی", grandTotal: "کۆی گشتی :", guestPayer: "میوان - پارەدەر", receptionStaff: "کارمەندی ڕێسپشن", roomFooterZero: "کۆی گشتی بریتییە لە 0 ژوور دەکاتە بڕی 0", serviceFooterZero: "کۆی گشتی خزمەتگوزاری دەکاتە بڕی 0", grandZeroWords: "(صفر)",
+        printTitle: "پرێنتی وەصل", printButton: "🖨️ پرێنت کردن", closeX: "داخستن (X)", invoiceNumber: "ژمارەی فاتوورە", printRoomCount: "ژ.", printRooms: "ژوورەکان", printServices: "خزمەتگوزارییەکان", printQty: "دانە", printPrice: "نرخ", printTotal: "کۆی گشتی", grandTotal: "کۆی گشتی :", guestPayer: "میوان - پارەدەر", receptionStaff: "کارمەندی ڕێسپشن", roomFooterZero: "کۆی گشتی بریتییە لە 0 ژوور دەکاتە بڕی 0", serviceFooterZero: "کۆی گشتی خزمەتگوزاری دەکاتە بڕی 0", grandZeroWords: "(سفر)",
         printGuestName: "ناوی میوان :", printCompany: "کۆمپانیا - فەرمانگە :", printEmail: "ئیمەیل - تەلەفۆن :", printDocument: "بەڵگەنامە (دوکیومێنت) :", printArrival: "بەرواری هاتن ( Check-in ) :", printDeparture: "بەرواری دەرچوون ( Checkout ) :", printNights: "کۆی گشتی شەوەکان :", printDocumentNo: "ژمارەی بەڵگەنامە :",
         invalidRoom: "ژووری نەگونجاو! تەنها 101-109، 201-209 و 301-309 هەیە.", serviceSaved: "خزمەتگوزارییەکە بە سەرکەوتوویی پاشەکەوت کرا!", invoiceDeletedSuccess: "وەصلەکە بە سەرکەوتوویی سڕایەوە!", infoSaved: "زانیارییە سەرەکییەکان خەزن کران!", confirmDeleteRoom: "ئایا دڵنیایت لە سڕینەوەی ژووری ژمارە ({value})؟", confirmDeleteService: "ئایا دڵنیایت لە سڕینەوەی خزمەتگوزاری ({value})؟", confirmDeleteInvoice: "ئایا دڵنیایت لە سڕینەوەی وەصلی ژمارە ({no}) بۆ بەڕێز ({name})؟",
         confTitle: "ئاگاداری سڕینەوە",
@@ -901,23 +901,69 @@
     function numberToWordsLocalized(num) {
       const n = Math.floor(Math.abs(Number(num) || 0));
       if (currentGlobalLang === 'ku') return numberToKurdishWords(n);
+
+      // ---------- Arabic ----------
       if (currentGlobalLang === 'ar') {
         if (n === 0) return 'صفر';
         const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
         const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
         const tens = ['', 'عشرة', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
         const hundreds = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
-        const group = x => { let out=[]; const h=Math.floor(x/100), r=x%100; if(h)out.push(hundreds[h]); if(r>=10&&r<20)out.push(teens[r-10]); else {const t=Math.floor(r/10),o=r%10;if(o)out.push(ones[o]);if(t)out.push(tens[t]);} return out.join(' و '); };
-        let parts=[]; let b=Math.floor(n/1e9),m=Math.floor(n%1e9/1e6),th=Math.floor(n%1e6/1000),r=n%1000;
-        if(b)parts.push(group(b)+' مليار'); if(m)parts.push(group(m)+' مليون'); if(th)parts.push(group(th)+' ألف'); if(r)parts.push(group(r)); return parts.join(' و ');
+        const group = x => {
+          const out = [];
+          const h = Math.floor(x / 100), r = x % 100;
+          if (h) out.push(hundreds[h]);
+          if (r >= 10 && r < 20) out.push(teens[r - 10]);
+          else {
+            const t = Math.floor(r / 10), o = r % 10;
+            if (o) out.push(ones[o]);
+            if (t) out.push(tens[t]);
+          }
+          return out.join(' و');
+        };
+        // scale: [singular, dual, plural 3-10, singular for 11+]
+        const scaled = (count, forms) => {
+          if (count === 1) return forms[0];
+          if (count === 2) return forms[1];
+          if (count >= 3 && count <= 10) return group(count) + ' ' + forms[2];
+          if (count === 200) return 'مائتا ' + forms[3];
+          return group(count) + ' ' + forms[3];
+        };
+        const parts = [];
+        const b = Math.floor(n / 1e9), m = Math.floor(n % 1e9 / 1e6), th = Math.floor(n % 1e6 / 1000), r = n % 1000;
+        if (b) parts.push(scaled(b, ['مليار', 'ملياران', 'مليارات', 'مليار']));
+        if (m) parts.push(scaled(m, ['مليون', 'مليونان', 'ملايين', 'مليون']));
+        if (th) parts.push(scaled(th, ['ألف', 'ألفان', 'آلاف', 'ألف']));
+        if (r) parts.push(group(r));
+        return parts.join(' و');
       }
+
+      // ---------- English ----------
       if (n === 0) return 'zero';
-      const ones = ['zero','one','two','three','four','five','six','seven','eight','nine'];
-      const teens = ['ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
-      const tens = ['', 'ten','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-      function group(x) { let a=[]; const h=Math.floor(x/100), r=x%100; if(h)a.push(ones[h]+' hundred'); if(r>=10&&r<20)a.push(teens[r-10]); else {const t=Math.floor(r/10),o=r%10;if(t)a.push(tens[t]);if(o)a.push(ones[o]);} return a.join(' '); }
-      let parts=[]; let b=Math.floor(n/1e9),m=Math.floor(n%1e9/1e6),th=Math.floor(n%1e6/1000),r=n%1000;
-      if(b)parts.push(group(b)+' billion'); if(m)parts.push(group(m)+' million'); if(th)parts.push(group(th)+' thousand'); if(r)parts.push(group(r)); return parts.join(' ');
+      const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+      const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+      const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+      const group = x => {
+        const out = [];
+        const h = Math.floor(x / 100), r = x % 100;
+        if (h) out.push(ones[h] + ' hundred');
+        if (r) {
+          let tail;
+          if (r < 10) tail = ones[r];
+          else if (r < 20) tail = teens[r - 10];
+          else tail = tens[Math.floor(r / 10)] + (r % 10 ? '-' + ones[r % 10] : '');
+          if (h) out.push('and');
+          out.push(tail);
+        }
+        return out.join(' ');
+      };
+      const parts = [];
+      const b = Math.floor(n / 1e9), m = Math.floor(n % 1e9 / 1e6), th = Math.floor(n % 1e6 / 1000), r = n % 1000;
+      if (b) parts.push(group(b) + ' billion');
+      if (m) parts.push(group(m) + ' million');
+      if (th) parts.push(group(th) + ' thousand');
+      if (r) parts.push((parts.length && r < 100 ? 'and ' : '') + group(r));
+      return parts.join(' ');
     }
 
     function currencyLabel(priceType) {
@@ -1098,12 +1144,12 @@
 
     // Kurdish Number to Words (Tafqeet) Converter Function
     function numberToKurdishWords(num) {
-      if (isNaN(num) || num === 0) return 'صفر';
+      if (isNaN(num) || num === 0) return 'سفر';
       
-      const ones = ['', 'يەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
-      const teens = ['دە', 'یازدە', 'دوانزە', 'سیانزە', 'چواردە', 'پازدە', 'شازدە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
-      const tens = ['', 'دە', 'بیست', 'سێست', 'چڵ', 'پەنجا', 'شێست', 'حەفتا', 'هەشتا', 'نوە'];
-      const hundreds = ['', 'سەد', 'دوو سەد', 'سێ سەد', 'چوار سەد', 'پێنج سەد', 'شەش سەد', 'حەوت سەد', 'هەشت سەد', 'نۆ سەد'];
+      const ones = ['', 'یەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
+      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پازدە', 'شازدە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
+      const tens = ['', 'دە', 'بیست', 'سی', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نەوەد'];
+      const hundreds = ['', 'سەد', 'دووسەد', 'سێسەد', 'چوارسەد', 'پێنجسەد', 'شەشسەد', 'حەوتسەد', 'هەشتسەد', 'نۆسەد'];
 
       function convertGroup(n) {
         let str = '';
@@ -1146,7 +1192,7 @@
         result.push(convertGroup(million) + ' ملیۆن');
       }
       if (thousand > 0) {
-        result.push(convertGroup(thousand) + ' هەزار');
+        result.push(thousand === 1 ? 'هەزار' : convertGroup(thousand) + ' هەزار');
       }
       if (remainder > 0) {
         result.push(convertGroup(remainder));
@@ -1903,7 +1949,7 @@
         let wordsParts = [];
         if (grandIQD > 0) wordsParts.push(`${numberToWordsLocalized(grandIQD)} ${localizedText('currencyIQD')}`);
         if (grandUSD > 0) wordsParts.push(`${numberToWordsLocalized(grandUSD)} ${localizedText('currencyUSD')}`);
-        document.getElementById('p_grandTotalWords').innerText = wordsParts.length > 0 ? `(${wordsParts.join(' و ')})` : localizedText('grandZeroWords');
+        document.getElementById('p_grandTotalWords').innerText = wordsParts.length > 0 ? `(${wordsParts.join(currentGlobalLang === 'en' ? ' and ' : (currentGlobalLang === 'ar' ? ' و' : ' و '))})` : localizedText('grandZeroWords');
 
         document.getElementById('printModal').classList.remove('hidden');
         document.getElementById('printModal').classList.add('flex');
