@@ -342,7 +342,7 @@
         <div>
           <label class="block font-bold text-gray-700 mb-0.5">ڕەسمی سەعات</label>
           <div class="w-full h-20 bg-gray-50 border border-gray-300 rounded-md flex flex-col items-center justify-center relative overflow-hidden">
-            <img id="saatPreview" src="" alt="" class="w-full h-full object-cover hidden">
+            <img id="saatPreview" src="" alt="" title="کلیک بکە بۆ گەورەکردن" onclick="openImageModal(this.src)" class="w-full h-full object-cover hidden cursor-zoom-in">
             <div id="uploadSaatPlaceholder" class="flex flex-col items-center justify-center text-gray-400 p-1">
               <span class="text-[10px]">ڕەسمی سەعات هەڵبژێرە...</span>
               <input type="file" accept="image/*" onchange="handleSaatUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
@@ -368,7 +368,7 @@
 
 
   <!-- IMAGE PREVIEW MODAL (پیشاندانی وێنەی گەورە) -->
-  <div id="imageModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+  <div id="imageModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-[130]" onclick="if(event.target===this) closeImageModal()">
     <div class="bg-white rounded-xl max-w-lg w-full p-3 shadow-2xl relative flex flex-col items-center">
       <div class="flex justify-between items-center w-full pb-2 border-b mb-2">
         <h3 class="text-sm font-bold text-blue-900">ڕەسمی سەعات</h3>
@@ -597,14 +597,15 @@
       amount = Math.floor(amount);
 
       const ones = ['', 'یەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
-      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پانزە', 'شانزە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
+      const hundreds = ['', 'سەد', 'دووسەد', 'سێسەد', 'چوارسەد', 'پێنجسەد', 'شەشسەد', 'حەوتسەد', 'هەشتسەد', 'نۆسەد'];
+      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پازدە', 'شازدە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
       const tens = ['', '', 'بیست', 'سی', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نەوەد'];
 
       function underThousand(n) {
         const parts = [];
         const h = Math.floor(n / 100);
         const r = n % 100;
-        if (h) parts.push(h === 1 ? 'سەد' : (h === 2 ? 'دووسەد' : ones[h] + 'سەد'));
+        if (h) parts.push(hundreds[h]);
         if (r >= 10 && r < 20) parts.push(teens[r - 10]);
         else {
           const t = Math.floor(r / 10), o = r % 10;
