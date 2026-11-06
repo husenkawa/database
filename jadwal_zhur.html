@@ -1,332 +1,549 @@
-<!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
-<script src="auth.js"></script>
-<script src="theme.js"></script>
-<!-- Favicon -->
-<link rel="icon" type="image/png" href="./images/icon.png">
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خشتەی ژوورەکان - هوتێل جیلا</title>
 
-<!-- Vazirmatn Font -->
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+    <script src="auth.js"></script>
+    <script src="theme.js"></script>
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
+    <link rel="shortcut icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
 
-<!-- Custom Styles & Print Setup -->
-<style>
-    body { font-family: 'Vazirmatn', sans-serif; }
+    <!-- Vazirmatn Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    /* Background Style */
-    .dashboard-bg {
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' };</script>
+
+    <style>
+      :root { --u: 30px; --tan: #f8cbad; }
+      body { font-family: 'Vazirmatn', sans-serif; }
+
+      [contenteditable="true"], input {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        -webkit-user-modify: read-write;
+      }
+
+      .dashboard-bg {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
-    }
+      }
 
-    /* Editable cell hover effect */
-    td[contenteditable="true"]:hover {
-        background-color: #f0f8ff;
-        cursor: text;
-    }
+      /* ===== A4 sheet ===== */
+      #printArea {
+        width: 210mm;
+        height: 296mm;
+        box-sizing: border-box;
+        padding: 5mm;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+      }
+      #tablesContainer { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
-    .notes-box:empty:before {
-        content: "لێرە دەتوانیت تێبینی یان نووسینی دەستی بنووسیت...";
-        color: #9ca3af;
-    }
+      table.sheet {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 12px;
+        border: 2px solid #000;
+      }
+      table.sheet td { border: 1px solid #000; padding: 0; }
+      table.sheet tr { height: calc(var(--u) * var(--k, 1)); }
+      table.sheet.block { margin-bottom: 6px; }
 
-    @media print {
-        body * {
-            visibility: hidden !important;
-        }
+      /* جۆری ٣: فراوانکردنی خانەکانی ژمارە و نووسینی ژوورەکان */
+      table.sheet.type3-wide {
+        width: calc(100% + 8mm);
+        margin-inline: -4mm;
+        table-layout: fixed;
+      }
+      table.sheet.type3-wide td.roomno {
+        font-size: 15px;
+      }
+
+      /* جیاوازییەکی بچووک لەنێوان خانەکانی جۆری ٢ و ٣ و ٤ بۆ نووسین */
+      table.sheet.spaced {
+        border-collapse: separate;
+        border-spacing: 2px;
+        border: 2px solid #000;
+      }
+      table.sheet.spaced td {
+        border: 1px solid #000;
+        background-clip: padding-box;
+      }
+      table.sheet.spaced td > .edit {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+      }
+      table.sheet.block:last-child { margin-bottom: 0; }
+      table.sheet.small { width: 56%; margin-left: auto; margin-right: auto; }
+
+      td.roomno {
+        text-align: center; vertical-align: middle; font-weight: 800; font-size: 14px; background: var(--tan);
+      }
+      td.roomno .sm { font-size: 9px; font-weight: 700; }
+      td.lbl {
+        text-align: center; vertical-align: middle; font-weight: 800; font-size: 10px; line-height: 1.15;
+        background: var(--tan); padding: 0 2px;
+      }
+      td.ttl {
+        text-align: center; vertical-align: middle; font-weight: 800; font-size: 12px; background: var(--tan);
+      }
+      td.tan { background: var(--tan); }
+      tr.floor-end td { border-bottom: 2px solid #000; }
+
+      .edit {
+        display: block;
+        height: calc(var(--u) * var(--k, 1) - 1px);
+        overflow: hidden;
+        padding: 2px 4px;
+        outline: none;
+        word-break: break-word;
+        line-height: 1.25;
+        font-size: 12px;
+      }
+      .edit[data-label]::before {
+        content: attr(data-label);
+        font-size: 9px;
+        font-weight: 700;
+        color: #64748b;
+        margin-inline-end: 5px;
+        pointer-events: none;
+        user-select: none;
+      }
+      td:hover > .edit { background-color: #f0f8ff; cursor: text; }
+      .edit:focus { background-color: #fffbeb; box-shadow: inset 0 0 0 2px #f59e0b; }
+
+      .notes-box { min-height: 9mm; max-height: 14mm; overflow: hidden; }
+      .notes-box:empty:before { content: attr(data-ph); color: #9ca3af; }
+
+      @media print {
+        @page { size: A4 portrait; margin: 0; }
+        body * { visibility: hidden !important; }
         #printArea, #printArea * {
-            visibility: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          visibility: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
         #printArea {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 5mm !important;
-            box-shadow: none !important;
-            background: white !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 210mm !important;
+          max-width: 210mm !important;
+          height: 296mm !important;
+          margin: 0 !important;
+          padding: 5mm !important;
+          box-shadow: none !important;
+          border: none !important;
+          border-radius: 0 !important;
+          background: white !important;
         }
-        .no-print {
-            display: none !important;
-        }
-    }
-</style>
+        .no-print { display: none !important; }
+        .notes-box:empty:before { content: "" !important; }
+        .edit:focus { box-shadow: none !important; background: transparent !important; }
+        tr { page-break-inside: avoid; }
+      }
+    </style>
+</head>
 
+<body class="dashboard-bg min-h-screen p-2 md:p-4 select-none text-slate-100 text-xs">
 
-<!-- FULL SCREEN LOADING OVERLAY -->
-<div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
-    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-    <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
-</div>
+    <!-- FULL SCREEN LOADING OVERLAY -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
+      <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+      <div id="loadingText" class="text-white font-bold text-sm tracking-wide" data-tk="wait">تکایە چاوەڕێ بە...</div>
+    </div>
 
-<!-- CUSTOM DELETE CONFIRMATION MODAL -->
-<div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
-    <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
-        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
-            ⚠️
-        </div>
+    <!-- CUSTOM DELETE CONFIRMATION MODAL -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
+      <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
+        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">⚠️</div>
         <div class="space-y-1">
-            <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm">ئاگاداری سڕینەوە</h3>
-            <p id="confirmMessage" class="text-xs text-gray-600">ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەم پەڕەیە؟</p>
+          <h3 id="confModalTitle" class="font-extrabold text-slate-900 text-sm" data-tk="mTitle">ئاگاداری سڕینەوە</h3>
+          <p id="confirmMessage" class="text-xs text-gray-600" data-tk="mMsg">ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەو پەڕەیە؟</p>
         </div>
         <div class="flex gap-2 pt-2">
-            <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition">پەشیمانبوونەوە</button>
-            <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">بەڵێ، بسڕەوە</button>
+          <button id="confirmCancelBtn" type="button" class="flex-1 bg-gray-200 hover:bg-gray-300 text-slate-800 font-bold py-2 px-3 rounded-lg text-xs transition" data-tk="cancel">پەشیمانبوونەوە</button>
+          <button id="confirmOkBtn" type="button" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition" data-tk="ok">بەڵێ، بسڕەوە</button>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- MAIN CONTAINER -->
-<div class="bg-white text-slate-900 p-6 rounded-xl shadow-2xl max-w-4xl w-full space-y-4" id="printArea">
-    
-    <!-- REPORT LOGO & HEADER -->
-    <div class="flex items-center justify-between bg-slate-900 text-white p-3 rounded-lg border border-slate-800">
-        <div class="flex items-center gap-3">
-            <img id="hotelLogo" src="images/logo_black.png" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';" alt="Jilla Hotel Logo" class="h-10 w-auto object-contain bg-white p-1 rounded">
-            <h1 class="font-black text-sm">هوتێل جیلا - Jilla Hotel</h1>
+    <!-- Header Section -->
+    <div class="max-w-6xl mx-auto flex justify-between items-center mb-3 no-print flex-wrap gap-2">
+      <div class="flex items-center gap-3 bg-white/95 px-4 py-1.5 rounded-lg shadow-md border border-gray-200">
+        <h1 class="text-sm font-bold text-blue-900" id="pageTitle"></h1>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <select id="langSelect" class="bg-white text-slate-900 font-bold text-xs px-2 py-2 rounded shadow-md border border-gray-300 cursor-pointer">
+          <option value="ku">🌐 کوردی</option>
+          <option value="ar">🌐 العربية</option>
+          <option value="en">🌐 English</option>
+        </select>
+        <button onclick="switchPage(1)" id="btnPage1" data-tk="b1" class="bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"></button>
+        <button onclick="switchPage(2)" id="btnPage2" data-tk="b2" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"></button>
+        <button onclick="switchPage(3)" id="btnPage3" data-tk="b3" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"></button>
+        <button onclick="switchPage(4)" id="btnPage4" data-tk="b4" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"></button>
+        <button id="resetBtn" type="button" data-tk="reset" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"></button>
+        <button onclick="window.print()" data-tk="print" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded shadow-md transition"></button>
+        <a href="main.html" data-tk="back" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-3 py-2 rounded shadow-md border border-gray-600 no-underline"></a>
+      </div>
+    </div>
+
+    <!-- Main Container / Printable Area (A4) -->
+    <div class="bg-white text-slate-900 rounded-xl shadow-2xl border border-gray-200" id="printArea">
+
+      <!-- Top Header -->
+      <div class="flex justify-between items-center border-b-2 border-black pb-1 mb-2">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-3 bg-white/95 px-3 py-1 rounded-lg shadow-md border border-gray-200">
+            <img id="hotelLogo" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="Jilla Hotel Logo" class="h-8 w-auto object-contain">
+            <h1 class="text-black font-black text-sm" data-tk="hotel"></h1>
+          </div>
+          <span class="text-[10px] text-gray-700 font-bold px-1" data-tk="addr"></span>
         </div>
-        <div class="text-xs font-semibold text-slate-300">خشتەی ژوورەکان</div>
+        <div class="text-center flex flex-col gap-1 items-center">
+          <div class="flex items-center gap-2 justify-center">
+            <label class="text-xs font-bold" data-tk="date"></label>
+            <input type="text" id="daily_barwar" class="border border-gray-400 rounded px-2 py-0.5 text-xs font-mono text-center w-28" placeholder="YYYY-MM-DD">
+          </div>
+          <div class="flex items-center gap-2 justify-center">
+            <label class="text-xs font-bold" data-tk="day"></label>
+            <input type="text" id="daily_day_name" class="border border-gray-400 rounded px-2 py-0.5 text-xs font-bold text-center w-28">
+          </div>
+        </div>
+        <div class="text-xs font-mono text-gray-700" dir="ltr">
+          <p>📞 07509415656</p>
+          <p>📞 07709415656</p>
+        </div>
+      </div>
+
+      <!-- Notes box -->
+      <div class="notes-box border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-lg px-2 py-1 text-xs text-slate-700 outline-none mb-2" contenteditable="true" data-ph=""></div>
+
+      <!-- Tables (generated by JS) -->
+      <div id="tablesContainer"></div>
+
+      <!-- Footer -->
+      <div class="flex justify-between items-center mt-2 pt-1 text-xs border-t border-gray-400 text-gray-700 tracking-wide">
+        <div>
+          <p class="font-bold" data-tk="addr"></p>
+        </div>
+        <div class="font-mono">
+          <p><span data-tk="tel"></span> <span dir="ltr">07509415656 - 07709415656</span></p>
+        </div>
+      </div>
+
     </div>
 
-    <!-- NOTES BOX -->
-    <div class="notes-box border-2 dashed border-amber-300 bg-amber-50/50 min-h-[50px] max-h-[120px] rounded-lg p-3 text-xs text-slate-700 outline-none" contenteditable="true"></div>
+    <script>
+      /* ===== Languages (the whole form) ===== */
+      const T = {
+        ku: {
+          dir: 'rtl', htmlLang: 'ckb',
+          appTitle: 'هوتێل جیلا - خشتەی ژوورەکان',
+          p1: 'جۆری ١', p2: 'جۆری ٢', p3: 'جۆری ٣', p4: 'جۆری ٤',
+          b1: '📄 خشتەی ژوور جۆری ١', b2: '📄 خشتەی ژوور جۆری ٢', b3: '📄 خشتەی ژوور جۆری ٣', b4: '📄 خشتەی ژوور جۆری ٤',
+          reset: '🗑️ سفر کردنەوە', print: '🖨️ پرێنت (Print)', back: 'گەڕانەوە',
+          mTitle: 'ئاگاداری سڕینەوە', mMsg: 'ئایا دڵنیایت لە سفرکردنەوەی خانەکانی ئەو پەڕەیە؟',
+          cancel: 'پەشیمانبوونەوە', ok: 'بەڵێ، بسڕەوە', wait: 'تکایە چاوەڕێ بە...',
+          hotel: 'هوتێل جیلا - Jilla Hotel',
+          addr: 'ناونیشان : هەولێر - شەقامی ٦٠ مەتری - بەرامبەر نەخۆشخانەی بار',
+          tel: 'تەلەفۆن :', date: 'بەروار:', day: 'ڕۆژ:', notesPh: 'تێبینی...',
+          hall: 'هۆڵ', dbl: 'ژووری دوو کەسی', dblBed: 'دوو کەسی بێدی مزدوج', twin: 'دوو کەسی بێدی جیا', triple: 'ژووری سێ کەسی',
+          suiteP: '(سویت)',
+          fg: 'نهۆمی زەوی', f1: 'نهۆمی یەکەم', f2: 'نهۆمی دووەم', f3: 'نهۆمی سێیەم', f4: 'نهۆمی چوارەم',
+          days: ['یەکشەمە', 'دووشەمە', 'سێشەمە', 'چوارشەمە', 'پێنجشەمە', 'هەینی', 'شەممە']
+        },
+        ar: {
+          dir: 'rtl', htmlLang: 'ar',
+          appTitle: 'فندق جيلا - جدول الغرف',
+          p1: 'نوع ١', p2: 'نوع ٢', p3: 'نوع ٣', p4: 'نوع ٤',
+          b1: '📄 جدول الغرف نوع ١', b2: '📄 جدول الغرف نوع ٢', b3: '📄 جدول الغرف نوع ٣', b4: '📄 جدول الغرف نوع ٤',
+          reset: '🗑️ تفريغ', print: '🖨️ طباعة (Print)', back: 'رجوع',
+          mTitle: 'تنبيه الحذف', mMsg: 'هل أنت متأكد من تفريغ خلايا هذه الصفحة؟',
+          cancel: 'تراجع', ok: 'نعم، امسح', wait: 'يرجى الانتظار...',
+          hotel: 'فندق جيلا - Jilla Hotel',
+          addr: 'العنوان : أربيل - شارع 60 متر - مقابل مستشفى بار',
+          tel: 'هاتف :', date: 'التاريخ:', day: 'اليوم:', notesPh: 'ملاحظات...',
+          hall: 'صالة', dbl: 'غرفة زوجي', dblBed: 'غرفة مزدوج', twin: 'غرفة سريرين منفصلين', triple: 'غرفة ثلاثي',
+          suiteP: '(سويت)',
+          fg: 'طابق الأرضي', f1: 'طابق الأول', f2: 'طابق الثاني', f3: 'طابق الثالث', f4: 'طابق الرابع',
+          days: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+        },
+        en: {
+          dir: 'ltr', htmlLang: 'en',
+          appTitle: 'Jilla Hotel - Room Chart',
+          p1: 'Type 1', p2: 'Type 2', p3: 'Type 3', p4: 'Type 4',
+          b1: '📄 Room Chart Type 1', b2: '📄 Room Chart Type 2', b3: '📄 Room Chart Type 3', b4: '📄 Room Chart Type 4',
+          reset: '🗑️ Clear', print: '🖨️ Print', back: 'Back',
+          mTitle: 'Delete Warning', mMsg: 'Are you sure you want to clear the cells of this page?',
+          cancel: 'Cancel', ok: 'Yes, clear', wait: 'Please wait...',
+          hotel: 'Jilla Hotel',
+          addr: 'Address: Erbil - 60 Meter Street - Opposite Bar Hospital',
+          tel: 'Tel:', date: 'Date:', day: 'Day:', notesPh: 'Notes...',
+          hall: 'Hall', dbl: 'Double Room', dblBed: 'Double Bed Room', twin: 'Twin Beds Room', triple: 'Triple Room',
+          suiteP: '(Suite)',
+          fg: 'Ground Floor', f1: '1st Floor', f2: '2nd Floor', f3: '3rd Floor', f4: '4th Floor',
+          days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        }
+      };
+      let currentLang = 'ku';
+      let currentActivePage = 1;
 
-    <!-- ROOMS TABLE -->
-    <div class="overflow-x-auto">
-        <table class="w-full border-collapse text-center">
-            <tbody id="scheduleTableBody">
-                <!-- ================= طابق الاول ================= -->
-                <tr>
-                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الاول</td>
-                </tr>
-                <!-- 101 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">101 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 102 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">102 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">103</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">104</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">105</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">106</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">107</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">108</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 109 -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">109</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
+      /* ===== Rooms ===== */
+      const SUF = ['01', '02', '03', '04', '05', '06', '07', '08', '09'];
+      const FLOORS = [1, 2, 3];
 
-                <!-- ================= طابق الثاني ================= -->
-                <tr>
-                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الثاني</td>
-                </tr>
-                <!-- 201 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">201 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 202 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">202 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">203</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">204</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">205</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">206</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">207</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">208</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 209 -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">209</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
+      // سویت ١ = هۆڵ + دوو کەسی + سێ کەسی | سویت ٢ = هۆڵ + بێدی مزدوج + بێدی جیا | سویت ٩ = هۆڵ + دوو کەسی
+      const SUITE = {
+        '01': ['hall', 'dbl', 'triple'],
+        '02': ['hall', 'dblBed', 'twin'],
+        '09': ['hall', 'dbl', null]
+      };
 
-                <!-- ================= طابق الثالث ================= -->
-                <tr>
-                    <td colspan="7" class="floor-title bg-amber-100 font-bold text-slate-900 py-2 border border-slate-300 text-xs">طابق الثالث</td>
-                </tr>
-                <!-- 301 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">301 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 302 سويت -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">302 (سويت)</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة مزدوج</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="triple-room-cell bg-emerald-50 border border-slate-300" contenteditable="true">غرفة ثلاثي</td>
-                    <td class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">303</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">304</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">305</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">306</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">307</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">308</td>
-                    <td colspan="6" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-                <!-- 309 -->
-                <tr>
-                    <td class="room-col font-bold bg-slate-50 border border-slate-300 py-1.5" contenteditable="true">309</td>
-                    <td class="hall-cell bg-blue-50 border border-slate-300" contenteditable="true">صاله</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                    <td class="double-room-cell bg-amber-50/60 border border-slate-300" contenteditable="true">غرفة زوجي</td>
-                    <td colspan="2" class="empty-cell border border-slate-300" contenteditable="true"></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+      function editDiv(labelKey) {
+        return `<div class="edit" contenteditable="true"${labelKey ? ` data-lk="${labelKey}"` : ''}></div>`;
+      }
+      function lbl(k) { return `<td class="lbl" data-tk="${k}"></td>`; }
+      function ed() { return `<td>${editDiv()}</td>`; }
+      function floorTitle(f, cols) {
+        return `<tr style="--k:.8"><td class="ttl" colspan="${cols}" data-tk="f${f}"></td></tr>`;
+      }
 
-    <!-- ACTIONS BAR -->
-    <div class="flex gap-3 justify-center pt-2 no-print">
-        <button id="resetBtn" type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
-            🗑️ سفرکردنەوەی خانەکان
-        </button>
-        <button type="button" onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
-            🖨️ چاپکردن / داگرتن (Print / PDF)
-        </button>
-    </div>
+      /* ---- جۆری ١: هۆڵ / دوو کەسی / سێ کەسی، لەگەڵ ناوی بەشەکان لە ناو خانەکاندا ---- */
+      function buildPage1() {
+        let body = '';
+        FLOORS.forEach(f => {
+          SUF.forEach(s => {
+            const cls = (s === '09' && f < 3) ? 'floor-end' : '';
+            const parts = SUITE[s];
+            const cells = parts
+              ? parts.map(k => `<td>${editDiv(k)}</td>`).join('')
+              : `<td colspan="3">${editDiv()}</td>`;
+            body += `<tr class="${cls}"><td class="roomno">${f}${s}</td>${cells}</tr>`;
+          });
+        });
+        return `<table class="sheet"><colgroup><col style="width:14mm"><col><col><col></colgroup><tbody>${body}</tbody></table>`;
+      }
 
-</div>
+      /* ---- جۆری ٢ (2.png): نهۆم بە نهۆم، خانەی ناونیشان + خانەی نووسین ---- */
+      function buildPage2() {
+        let html = '';
+        FLOORS.forEach(f => {
+          let rows = floorTitle(f, 7);
+          SUF.forEach(s => {
+            const suite = SUITE[s];
+            let r = `<td class="roomno">${f}${s}${suite ? ` <span class="sm" data-tk="suiteP"></span>` : ''}</td>`;
+            if (suite) {
+              const [a, b, c] = suite;
+              r += lbl(a) + ed() + lbl(b);
+              r += c ? ed() + lbl(c) + ed() : `<td colspan="3">${editDiv()}</td>`;
+            } else {
+              r += `<td colspan="6">${editDiv()}</td>`;
+            }
+            rows += `<tr>${r}</tr>`;
+          });
+          html += `<table class="sheet spaced block">
+            <colgroup><col style="width:8%"><col style="width:7%"><col style="width:24%"><col style="width:7%"><col style="width:24%"><col style="width:7%"><col style="width:23%"></colgroup>
+            <tbody>${rows}</tbody></table>`;
+        });
+        return html;
+      }
 
-<!-- SCRIPTS -->
-<script>
-    const resetBtn = document.getElementById('resetBtn');
-    const confirmModal = document.getElementById('confirmModal');
-    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
-    const confirmOkBtn = document.getElementById('confirmOkBtn');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const notesBox = document.querySelector('.notes-box');
+      /* ---- جۆری ٣ (3.png): ٣ خشتەی نهۆم + ٥ خشتەی بچووکی نهۆمەکان ---- */
+      function buildPage3() {
+        let html = '';
+        FLOORS.forEach(f => {
+          const nums = SUF.map(s => `<td class="roomno">${f}${s}</td>`).join('');
+          const eds = SUF.map(() => ed()).join('');
+          html += `<table class="sheet spaced block type3-wide"><tbody>
+            <tr style="--k:.7"><td class="ttl" colspan="9" data-tk="f${f}"></td></tr>
+            <tr style="--k:.8">${nums}</tr>
+            <tr style="--k:3">${eds}</tr>
+          </tbody></table>`;
+        });
+        const heads = ['fg', 'f1', 'f2', 'f3', 'f4'].map(k => lbl(k)).join('');
+        const cells = [0, 1, 2, 3, 4].map(() => ed()).join('');
+        for (let i = 0; i < 5; i++) {
+          html += `<table class="sheet spaced block small"><tbody>
+            <tr style="--k:.7"><td class="tan" colspan="5">${editDiv()}</td></tr>
+            <tr style="--k:.8">${heads}</tr>
+            <tr style="--k:1.2">${cells}</tr>
+          </tbody></table>`;
+        }
+        return html;
+      }
 
-    // ١. پیشاندانی مۆداڵی سڕینەوە
-    resetBtn.addEventListener('click', () => {
-        confirmModal.classList.remove('hidden');
-        confirmModal.classList.add('flex');
-    });
+      /* ---- جۆری ٤ (4.png): نهۆم بە نهۆم، ژمارەی ژوور + یەک ڕیزی درێژ ---- */
+      function buildPage4() {
+        let html = '';
+        FLOORS.forEach(f => {
+          let rows = floorTitle(f, 2);
+          SUF.forEach(s => {
+            rows += `<tr><td class="roomno">${f}${s}</td><td>${editDiv()}</td></tr>`;
+          });
+          html += `<table class="sheet spaced block"><colgroup><col style="width:22mm"><col></colgroup><tbody>${rows}</tbody></table>`;
+        });
+        return html;
+      }
 
-    // ٢. داخستنی مۆداڵ لەکاتی پەشیمانبوونەوە
-    confirmCancelBtn.addEventListener('click', () => {
-        confirmModal.classList.add('hidden');
-        confirmModal.classList.remove('flex');
-    });
+      // units = کۆی بەرزییەکان بە یەکە (بۆ پڕکردنەوەی A4)
+      const PAGES = [
+        { build: buildPage1, units: 27 },
+        { build: buildPage2, units: 29.4 },
+        { build: buildPage3, units: 27 },
+        { build: buildPage4, units: 29.4 }
+      ];
 
-    // ٣. سڕینەوە و خاوێنکردنەوەی خانەکان لەگەڵ لۆدینگ
-    confirmOkBtn.addEventListener('click', () => {
-        confirmModal.classList.add('hidden');
-        confirmModal.classList.remove('flex');
+      function buildTables() {
+        let html = '';
+        PAGES.forEach((p, i) => {
+          html += `<div class="${i === 0 ? '' : 'hidden'}" id="tablePage${i + 1}" data-units="${p.units}">${p.build()}</div>`;
+        });
+        document.getElementById('tablesContainer').innerHTML = html;
+      }
 
+      /* ===== Fill exactly one A4 ===== */
+      function computeUnits() {
+        const container = document.getElementById('tablesContainer');
+        const wrap = container.querySelector(':scope > div:not(.hidden)');
+        if (!wrap) return;
+        const units = parseFloat(wrap.dataset.units) || 27;
+        const root = document.documentElement;
+        root.style.setProperty('--u', '40px');
+        const fixed = wrap.offsetHeight - units * 40;
+        const u = Math.max(14, (container.clientHeight - fixed - 3) / units);
+        root.style.setProperty('--u', u.toFixed(2) + 'px');
+      }
+
+      /* ===== Language: whole form ===== */
+      function updateTitle() {
+        const t = T[currentLang];
+        const title = t.appTitle + ' (' + t['p' + currentActivePage] + ')';
+        document.getElementById('pageTitle').innerText = title;
+        document.title = t.appTitle;
+      }
+
+      function applyLang(lang) {
+        if (!T[lang]) lang = 'ku';
+        currentLang = lang;
+        const t = T[lang];
+
+        document.documentElement.setAttribute('dir', t.dir);
+        document.documentElement.setAttribute('lang', t.htmlLang);
+
+        document.querySelectorAll('[data-tk]').forEach(el => { el.textContent = t[el.dataset.tk] || ''; });
+        document.querySelectorAll('[data-lk]').forEach(el => { el.setAttribute('data-label', t[el.dataset.lk] || ''); });
+        document.querySelector('.notes-box').setAttribute('data-ph', t.notesPh);
+
+        document.getElementById('langSelect').value = lang;
+        try { localStorage.setItem('jadwal_zhur_lang', lang); } catch (e) {}
+
+        setDayNameByDate(document.getElementById('daily_barwar').value);
+        updateTitle();
+        computeUnits();
+      }
+
+      /* ===== Date helpers ===== */
+      function getLocalDateString() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      }
+
+      function setDayNameByDate(dateString) {
+        if (!dateString) return;
+        const d = new Date(dateString + 'T00:00:00');
+        if (!isNaN(d.getTime())) document.getElementById('daily_day_name').value = T[currentLang].days[d.getDay()];
+      }
+
+      /* ===== UI ===== */
+      const resetBtn = document.getElementById('resetBtn');
+      const confirmModal = document.getElementById('confirmModal');
+      const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+      const confirmOkBtn = document.getElementById('confirmOkBtn');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+
+      function showLoading() {
         loadingOverlay.classList.remove('hidden');
         loadingOverlay.classList.add('flex');
+      }
+      function hideLoading() {
+        loadingOverlay.classList.add('hidden');
+        loadingOverlay.classList.remove('flex');
+      }
 
-        setTimeout(() => {
-            // پاککردنەوەی تێبینییەکان
-            if(notesBox) notesBox.innerHTML = '';
+      function switchPage(pageNum) {
+        currentActivePage = pageNum;
+        for (let i = 1; i <= 4; i++) {
+          document.getElementById('tablePage' + i).classList.toggle('hidden', i !== pageNum);
+          document.getElementById('btnPage' + i).className = (i === pageNum)
+            ? "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition"
+            : "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        }
+        updateTitle();
+        computeUnits();
+      }
 
-            // پاککردنەوەی خانەکانی دەستکاری کراو لە تەیبڵدا (جگە لە ستوونی سەرەکی ژوورەکان و ناوونیشانی نهۆمەکان)
-            const editableCells = document.querySelectorAll('#scheduleTableBody td[contenteditable="true"]:not(.room-col)');
-            editableCells.forEach(cell => {
-                cell.innerHTML = '';
-            });
+      function clearCurrentTableData() {
+        document.querySelectorAll('#tablePage' + currentActivePage + ' .edit').forEach(c => c.innerHTML = '');
+        const nb = document.querySelector('.notes-box');
+        if (nb) nb.innerHTML = '';
+      }
 
-            loadingOverlay.classList.add('hidden');
-            loadingOverlay.classList.remove('flex');
-        }, 1000);
-    });
-</script>
+      window.addEventListener('DOMContentLoaded', () => {
+        buildTables();
+
+        const today = getLocalDateString();
+        document.getElementById('daily_barwar').value = today;
+        document.getElementById('daily_barwar').addEventListener('change', e => setDayNameByDate(e.target.value));
+
+        let saved = 'ku';
+        try { saved = localStorage.getItem('jadwal_zhur_lang') || 'ku'; } catch (e) {}
+        applyLang(saved);
+        switchPage(1);
+
+        document.getElementById('langSelect').addEventListener('change', e => applyLang(e.target.value));
+
+        document.getElementById('hotelLogo').addEventListener('load', computeUnits);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(computeUnits);
+
+        // پەیستکردن وەک دەقی ئاسایی
+        document.addEventListener('paste', e => {
+          if (e.target && e.target.isContentEditable) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+            document.execCommand('insertText', false, text);
+          }
+        });
+      });
+
+      window.addEventListener('load', computeUnits);
+      window.addEventListener('resize', computeUnits);
+      window.addEventListener('beforeprint', computeUnits);
+
+      resetBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+      });
+      confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+      });
+      confirmOkBtn.addEventListener('click', () => {
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+        showLoading();
+        setTimeout(() => { clearCurrentTableData(); hideLoading(); }, 800);
+      });
+    </script>
+</body>
+</html>
