@@ -1,34 +1,38 @@
 <!DOCTYPE html>
 <html lang="ckb" dir="rtl">
 <head>
-  <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
-  <script src="auth.js"></script>
-  <script src="theme.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ڕاپۆرتی ڕۆژانەی هوتێل جیلا</title>
 
-    <!-- 1. Favicon (لۆگی تاب) - گۆڕدرا بۆ icon.png -->
-    <link rel="icon" type="image/png" href="./images/icon.png">
+    <!-- پاراستنی پەڕە: پێویستە لۆگین بکرێت -->
+    <script src="auth.js"></script>
+    <script src="theme.js"></script>
 
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 1. Favicon (لۆگی تاب) -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
 
     <!-- Vazirmatn Font -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
+    <script>tailwind.config = { darkMode: 'class' };</script>
 
     <!-- 2. Background Class & Custom Styles -->
     <style>
       body { font-family: 'Vazirmatn', sans-serif; }
 
+      /* چاکسازی: select-none لە Safari/iPhone ڕێگا لە نووسین لە input دەگرێت */
+      input {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
+
       .dashboard-bg {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0284c7 80%, #0369a1 100%);
       }
-      
+
       .ultra-light-placeholder::placeholder {
         color: #d1d5db !important;
         opacity: 0.6 !important;
@@ -63,13 +67,13 @@
 
 <body class="dashboard-bg min-h-screen p-2 md:p-4 select-none text-slate-100 text-xs">
 
-    <!-- 3. FULL SCREEN LOADING OVERLAY (ئۆڤەرلەی لۆدینگ) -->
+    <!-- 3. FULL SCREEN LOADING OVERLAY -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden justify-center items-center z-[100] flex-col gap-3">
       <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
       <div id="loadingText" class="text-white font-bold text-sm tracking-wide">تکایە چاوەڕێ بە...</div>
     </div>
 
-    <!-- 4. CUSTOM DELETE CONFIRMATION MODAL (مۆداڵ / نامەی سڕینەوە) -->
+    <!-- 4. CUSTOM DELETE CONFIRMATION MODAL -->
     <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center p-2 z-[120] no-print">
       <div class="bg-white text-slate-900 rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center border border-gray-100">
         <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
@@ -115,12 +119,12 @@
 
     <!-- Main Container / Printable Area -->
     <div class="max-w-6xl mx-auto bg-white text-slate-900 rounded-xl p-4 shadow-2xl border border-gray-200" id="printArea">
-      
+
       <!-- Top Header for Print -->
       <div class="flex justify-between items-center border-b-2 border-black pb-2 mb-3">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-3 bg-white/95 px-3 py-1.5 rounded-lg shadow-md border border-gray-200">
-            <img id="hotelLogo" src="images/logo_black.png" onerror="this.src='images/logo_black.png';" alt="Jilla Hotel Logo" class="h-8 w-auto object-contain">
+            <img id="hotelLogo" src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="Jilla Hotel Logo" class="h-8 w-auto object-contain">
             <h1 id="lbl_topBrand" class="text-black font-black text-sm">هوتێل جیلا - Jilla Hotel</h1>
           </div>
           <span class="text-[10px] text-gray-700 font-bold px-1" dir="rtl">
@@ -220,10 +224,6 @@
 
     <!-- Scripts -->
     <script>
-      const SUPABASE_URL = "https://jrdakonfokyayzlcqnef.supabase.co";
-      const SUPABASE_KEY = "sb_publishable_wZlhj2VEgMjX4xy7M1OeBA_M5xLSNwG";
-      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
       const totalRows = 27;
       let existingRecordsMap = {};
       let currentActivePage = 1;
@@ -234,7 +234,6 @@
         "301", "302", "303", "304", "305", "306", "307", "308", "309"
       ];
 
-      // توخمەکانی مۆداڵ و لۆدینگ
       const resetBtn = document.getElementById('resetBtn');
       const confirmModal = document.getElementById('confirmModal');
       const confirmCancelBtn = document.getElementById('confirmCancelBtn');
@@ -243,17 +242,37 @@
 
       const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
+      // چاکسازی: بەرواری ناوخۆیی (نەک UTC) - پێشتر نیوەشەو بەرواری دوێنێی پیشان دەدا
+      function getLocalDateString() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
       function setDayNameByDate(dateString) {
         if (!dateString) return;
-        const d = new Date(dateString);
+        // T00:00:00 واتە کاتی ناوخۆیی، بۆ ئەوەی ڕۆژەکە هەڵە نەبێت
+        const d = new Date(dateString + 'T00:00:00');
         if (!isNaN(d.getTime())) {
-          const dayName = arabicDays[d.getDay()];
-          document.getElementById('daily_day_name').value = dayName;
+          document.getElementById('daily_day_name').value = arabicDays[d.getDay()];
         }
       }
 
+      function showLoading(text) {
+        document.getElementById('loadingText').innerText = text || 'تکایە چاوەڕێ بە...';
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+      }
+
+      function hideLoading() {
+        loadingOverlay.classList.add('hidden');
+        loadingOverlay.classList.remove('flex');
+      }
+
       window.addEventListener('DOMContentLoaded', async () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         document.getElementById('daily_barwar').value = today;
         setDayNameByDate(today);
 
@@ -265,45 +284,38 @@
         await fetchDailyData();
       });
 
-      // ١. کاتێک کلیک لە دوگمەی سفرکردنەوە دەکەیت، مۆداڵەکە پیشان بدە
       resetBtn.addEventListener('click', () => {
         confirmModal.classList.remove('hidden');
         confirmModal.classList.add('flex');
       });
 
-      // ٢. کاتێک کلیک لە دوگمەی "پەشیمانبوونەوە" دەکەیت، مۆداڵەکە بشارەوە
       confirmCancelBtn.addEventListener('click', () => {
         confirmModal.classList.add('hidden');
         confirmModal.classList.remove('flex');
       });
 
-      // ٣. کاتێک کلیک لە دوگمەی "بەڵێ، بسڕەوە" دەکەیت، سڕینەوە دەستپێبکە
       confirmOkBtn.addEventListener('click', () => {
-        // شاردنەوەی مۆداڵەکە
         confirmModal.classList.add('hidden');
         confirmModal.classList.remove('flex');
 
-        // نیشاندانی ئۆڤەرلەی لۆدینگ
-        loadingOverlay.classList.remove('hidden');
-        loadingOverlay.classList.add('flex');
+        showLoading();
 
         setTimeout(() => {
-          // ئەنجامدانی سڕینەوەی خانەکان
           clearCurrentTableData();
-
-          // شاردنەوەی لۆدینگ
-          loadingOverlay.classList.add('hidden');
-          loadingOverlay.classList.remove('flex');
+          hideLoading();
         }, 800);
       });
 
+      // چاکسازی: ژمارەی ستوونەکان ئێستا ڕێک لەگەڵ input ـەکانە (پێشتر 0,1,3,4 بوو و Enter ستوونی هەڵە یان هیچی دەکرد)
       function handleKeyDown(event, currentRowIndex, currentColumnIndex, tableId) {
         if (event.key === 'Enter') {
           event.preventDefault();
           const nextRowIndex = currentRowIndex + 1;
           if (nextRowIndex < totalRows) {
             const table = document.getElementById(tableId);
-            const nextRowInputs = table.querySelectorAll('tbody tr')[nextRowIndex].querySelectorAll('input');
+            const nextRow = table.querySelectorAll('tbody tr')[nextRowIndex];
+            if (!nextRow) return;
+            const nextRowInputs = nextRow.querySelectorAll('input');
             if (nextRowInputs[currentColumnIndex]) {
               nextRowInputs[currentColumnIndex].focus();
               nextRowInputs[currentColumnIndex].select();
@@ -314,58 +326,35 @@
 
       function switchPage(pageNum) {
         currentActivePage = pageNum;
-        const table1 = document.getElementById('tablePage1');
-        const table2 = document.getElementById('tablePage2');
-        const table3 = document.getElementById('tablePage3');
-        
-        const btn1 = document.getElementById('btnPage1');
-        const btn2 = document.getElementById('btnPage2');
-        const btn3 = document.getElementById('btnPage3');
-        
-        const title = document.getElementById('pageTitle');
+        const tables = [
+          document.getElementById('tablePage1'),
+          document.getElementById('tablePage2'),
+          document.getElementById('tablePage3')
+        ];
+        const btns = [
+          document.getElementById('btnPage1'),
+          document.getElementById('btnPage2'),
+          document.getElementById('btnPage3')
+        ];
+        const titles = [
+          'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ١)',
+          'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ٢)',
+          'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (سەیارەکان)'
+        ];
 
-        table1.classList.add('hidden');
-        table2.classList.add('hidden');
-        table3.classList.add('hidden');
-        
-        btn1.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
-        btn2.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
-        btn3.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        tables.forEach(t => t.classList.add('hidden'));
+        btns.forEach(b => {
+          b.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        });
 
-        if (pageNum === 1) {
-          table1.classList.remove('hidden');
-          btn1.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
-          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ١)';
-        } else if (pageNum === 2) {
-          table2.classList.remove('hidden');
-          btn2.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
-          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (پەڕەی ٢)';
-        } else if (pageNum === 3) {
-          table3.classList.remove('hidden');
-          btn3.className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
-          title.innerText = 'هوتێل جیلا - ڕاپۆرتی ڕۆژانە (سەیارەکان)';
-        }
+        const idx = pageNum - 1;
+        tables[idx].classList.remove('hidden');
+        btns[idx].className = "bg-purple-700 text-white font-bold text-xs px-3 py-2 rounded shadow-md transition";
+        document.getElementById('pageTitle').innerText = titles[idx];
       }
 
-      async function fetchDailyData() {
-        const selectedDate = document.getElementById('daily_barwar').value;
+      function fetchDailyData() {
         existingRecordsMap = {};
-
-        try {
-          const { data, error } = await supabaseClient
-            .from('1-tbl-daily-hotel')
-            .select('*')
-            .eq('daily-barwar', selectedDate);
-
-          if (!error && data) {
-            data.forEach((item, index) => {
-              existingRecordsMap[index] = item;
-            });
-          }
-        } catch (err) {
-          console.error("Error fetching data:", err);
-        }
-
         renderTable();
         renderTable2();
         renderTable3();
@@ -377,10 +366,10 @@
 
         for (let i = 0; i < totalRows; i++) {
           const item = existingRecordsMap[i] || {};
-          const notZhur = item['daily-not-zhur'] || '';
-          const roomNo = item['room_no'] || '';
-          const hisab = item['daily-hisab'] || '';
-          const notHisab = item['daily-not-hisab'] || '';
+          const notZhur = escapeAttr(item['daily-not-zhur'] || '');
+          const roomNo = escapeAttr(item['room_no'] || '');
+          const hisab = escapeAttr(item['daily-hisab'] || '');
+          const notHisab = escapeAttr(item['daily-not-hisab'] || '');
           const recordId = item['id'] || '';
 
           html += `
@@ -393,10 +382,10 @@
               </td>
               <td class="border border-black p-0.5 text-center bg-white w-16"></td>
               <td class="border border-black p-0.5 text-center w-[25%]">
-                <input type="text" value="${hisab}" onkeydown="handleKeyDown(event, ${i}, 3, 'tablePage1')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none hisab-input" placeholder="...">
+                <input type="text" value="${hisab}" onkeydown="handleKeyDown(event, ${i}, 2, 'tablePage1')" class="w-full bg-transparent text-center font-mono text-xs focus:outline-none hisab-input" placeholder="...">
               </td>
               <td class="border border-black p-0.5 w-[24%]">
-                <input type="text" value="${notHisab}" onkeydown="handleKeyDown(event, ${i}, 4, 'tablePage1')" class="w-full bg-transparent px-1 text-xs focus:outline-none not-hisab-input" placeholder="...">
+                <input type="text" value="${notHisab}" onkeydown="handleKeyDown(event, ${i}, 3, 'tablePage1')" class="w-full bg-transparent px-1 text-xs focus:outline-none not-hisab-input" placeholder="...">
               </td>
             </tr>
           `;
@@ -404,6 +393,15 @@
 
         tbody.innerHTML = html;
         updateRoomCount();
+      }
+
+      // چاکسازی: نووسینی " یان < لە داتادا نابێتە هۆی تێکچوونی خانەکان
+      function escapeAttr(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
       }
 
       function renderTable2() {
@@ -463,9 +461,7 @@
         const roomInputs = document.querySelectorAll('#tablePage1 .room-input');
         let count = 0;
         roomInputs.forEach(input => {
-          if (input.value.trim() !== '') {
-            count++;
-          }
+          if (input.value.trim() !== '') count++;
         });
         document.getElementById('totalRoomsCount').innerText = count;
       }
@@ -474,9 +470,7 @@
         const carInputs = document.querySelectorAll('#tablePage3 .car-input');
         let count = 0;
         carInputs.forEach(input => {
-          if (input.value.trim() !== '') {
-            count++;
-          }
+          if (input.value.trim() !== '') count++;
         });
         document.getElementById('totalCarsCount').innerText = count;
       }
@@ -484,9 +478,11 @@
       function validateRoom(input) {
         const val = input.value.trim();
         if (val !== "" && !allowedRooms.includes(val)) {
-          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
           input.value = "";
-          input.focus();
+          updateRoomCount();
+          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
+          setTimeout(() => input.focus(), 0);
+          return;
         }
         updateRoomCount();
       }
@@ -494,9 +490,9 @@
       function validateCarRoom(input) {
         const val = input.value.trim();
         if (val !== "" && !allowedRooms.includes(val)) {
-          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
           input.value = "";
-          input.focus();
+          alert('تکایە تەنها ژوورەکانی نێوان (١٠١-١٠٩، ٢٠١-٢٠٩، ٣٠١-٣٠٩) بنووسە!');
+          setTimeout(() => input.focus(), 0);
         }
       }
 
@@ -510,12 +506,10 @@
           targetSelector = '#roomsTableBody3 tr';
         }
 
-        const rows = document.querySelectorAll(targetSelector);
-        rows.forEach(tr => {
-          const inputs = tr.querySelectorAll('input');
-          inputs.forEach(input => input.value = '');
+        document.querySelectorAll(targetSelector).forEach(tr => {
+          tr.querySelectorAll('input').forEach(input => input.value = '');
         });
-        
+
         updateRoomCount();
         updateCarCount();
       }
