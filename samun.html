@@ -9,7 +9,7 @@
   <title>تۆماری صمون - هوتێل جیلا</title>
 
   <!-- Favicon (لۆگۆی تاب) -->
-  <link rel="icon" type="image/png" href="./images/icon.png">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/icon.png">
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -248,8 +248,8 @@
           <!-- Unified Header -->
           <div class="flex justify-between items-center bg-slate-100 text-slate-900 px-3 py-1.5 rounded-t-md border-b-2 border-slate-400 mb-3">
             <div class="flex items-center gap-2">
-              <img src="images/logo_black.png" onerror="this.src='images/logo_black.png';" alt="لۆگۆی هوتێل" class="h-6 w-auto object-contain">
-              <span class="font-black text-xs text-slate-800">هوتێل جیلا[cite: 1]</span>
+              <img src="https://raw.githubusercontent.com/jilla-hotel-database/Jilla-hotel/main/logo_black.png" alt="لۆگۆی هوتێل جیلا" class="h-8 w-auto object-contain">
+              <span class="font-black text-xs text-slate-800">هوتێل جیلا</span>
             </div>
             <div class="text-center">
               <h1 class="text-xs font-black text-slate-900"><span id="reportMonthTitle"></span></h1>
@@ -288,7 +288,7 @@
 
           <!-- Unified Footer / Signature -->
           <div class="flex justify-between items-center mt-4 pt-2 text-xs font-bold border-t border-slate-400 bg-slate-50 p-1.5 rounded-b-md">
-            <div class="text-slate-800">بەڕێوەبەری گشتی هوتێل جیلا[cite: 1]: <span id="managerNameDisplay" class="font-normal underline mr-2 text-slate-900">چاوەڕوانبن...</span></div>
+            <div class="text-slate-800">بەڕێوەبەری گشتی هوتێل جیلا: <span id="managerNameDisplay" class="font-normal underline mr-2 text-slate-900"></span></div>
           </div>
 
         </div>
@@ -319,11 +319,12 @@
     const confirmOkBtn = document.getElementById('confirmOkBtn');
     const loadingOverlay = document.getElementById('loadingOverlay');
 
-    window.onload = function() {
+    // DOMContentLoaded بەکاردێت بۆ ئەوەی auth.js یان theme.js نەتوانن window.onload بنووسنەوە
+    document.addEventListener('DOMContentLoaded', function() {
       setDefaultDate();
       setMonthlyFilterDefault();
       fetchManagerName();
-    };
+    });
 
     confirmCancelBtn.addEventListener('click', () => {
       confirmModal.classList.add('hidden');
@@ -519,10 +520,10 @@
     function numberToWordsKurdish(num) {
       if (isNaN(num) || num <= 0) return 'سفر دینار';
 
-      const ones = ['', 'يەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
-      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پازدە', 'شازدە', 'حەفدە', 'هەژدە', 'نۆزدە'];
-      const tens = ['', 'دە', 'بیست', 'سێچل', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نوە'];
-      const hundreds = ['', 'سەد', 'دوو سەد', 'سێ سەد', 'چوار سەد', 'پێنج سەد', 'شەش سەد', 'حەوت سەد', 'هەشت سەد', 'نۆ سەد'];
+      const ones = ['', 'یەک', 'دوو', 'سێ', 'چوار', 'پێنج', 'شەش', 'حەوت', 'هەشت', 'نۆ'];
+      const teens = ['دە', 'یازدە', 'دوازدە', 'سێزدە', 'چواردە', 'پازدە', 'شازدە', 'حەڤدە', 'هەژدە', 'نۆزدە'];
+      const tens = ['', 'دە', 'بیست', 'سی', 'چل', 'پەنجا', 'شەست', 'حەفتا', 'هەشتا', 'نەوەد'];
+      const hundreds = ['', 'سەد', 'دووسەد', 'سێسەد', 'چوارسەد', 'پێنجسەد', 'شەشسەد', 'حەوتسەد', 'هەشتسەد', 'نۆسەد'];
 
       function convertHundreds(n) {
         let str = '';
@@ -723,7 +724,7 @@
     function editRecord(id, date, dana) {
       openModal();
       document.getElementById('recordId').value = id;
-      document.getElementById('samunDate').value, date;
+      document.getElementById('samunDate').value = date;
       document.getElementById('samunDana').value = dana;
       document.getElementById('modalTitle').innerText = 'دەستکاریکردنی تۆمار';
       document.getElementById('submitBtn').innerText = 'نوێکردنەوە';
