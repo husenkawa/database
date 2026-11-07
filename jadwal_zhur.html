@@ -59,8 +59,8 @@
 
       /* جۆری ٣: فراوانکردنی خانەکانی ژمارە و نووسینی ژوورەکان */
       table.sheet.type3-wide {
-        width: calc(100% + 8mm);
-        margin-inline: -4mm;
+        width: 100%;
+        margin-inline: 0;
         table-layout: fixed;
       }
       table.sheet.type3-wide td.roomno {
@@ -81,6 +81,10 @@
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
+      }
+      /* جۆری ٤: بۆردەری هەموو خانەکان (ژمارەی ژوور + خانەی نووسین بە قەلەم) دیار بێت، لە پرێنتیشدا */
+      table.sheet.type4 td {
+        border: 1px solid #000 !important;
       }
       table.sheet.block:last-child { margin-bottom: 0; }
       table.sheet.small { width: 56%; margin-left: auto; margin-right: auto; }
@@ -326,8 +330,11 @@
           SUF.forEach(s => {
             const cls = (s === '09' && f < 3) ? 'floor-end' : '';
             const parts = SUITE[s];
+            // ژوورەکانی 109 و 209 و 309: فیلدی یەکەم و دووەم میرج دەکرێن (colspan=2)، و «ژووری دوو کەسی» دەچێتە فیلدی سێیەم
             const cells = parts
-              ? parts.map(k => `<td>${editDiv(k)}</td>`).join('')
+              ? (s === '09'
+                  ? `<td colspan="2">${editDiv(parts[0])}</td><td>${editDiv(parts[1])}</td>`
+                  : parts.map(k => `<td>${editDiv(k)}</td>`).join(''))
               : `<td colspan="3">${editDiv()}</td>`;
             body += `<tr class="${cls}"><td class="roomno">${f}${s}</td>${cells}</tr>`;
           });
@@ -345,8 +352,12 @@
             let r = `<td class="roomno">${f}${s}${suite ? ` <span class="sm" data-tk="suiteP"></span>` : ''}</td>`;
             if (suite) {
               const [a, b, c] = suite;
-              r += lbl(a) + ed() + lbl(b);
-              r += c ? ed() + lbl(c) + ed() : `<td colspan="3">${editDiv()}</td>`;
+              if (c) {
+                r += lbl(a) + ed() + lbl(b) + ed() + lbl(c) + ed();
+              } else {
+                // 109/209/309: فیلدی یەکەم و دووەم میرج دەکرێن (colspan=3)، و «ژووری دوو کەسی» دەچێتە فیلدی سێیەم
+                r += lbl(a) + `<td colspan="3">${editDiv()}</td>` + lbl(b) + ed();
+              }
             } else {
               r += `<td colspan="6">${editDiv()}</td>`;
             }
@@ -363,19 +374,21 @@
       function buildPage3() {
         let html = '';
         FLOORS.forEach(f => {
-          const nums = SUF.map(s => `<td class="roomno">${f}${s}</td>`).join('');
-          const eds = SUF.map(() => ed()).join('');
-          html += `<table class="sheet spaced block type3-wide"><tbody>
-            <tr style="--k:.7"><td class="ttl" colspan="9" data-tk="f${f}"></td></tr>
+          // ٩ ژوور × ٣ = ٢٧ ستوون؛ ٣ فیلدەکانی ژێر هەر ژوورێک میرج کراون (colspan=3)
+          const nums = SUF.map(s => `<td class="roomno" colspan="3">${f}${s}</td>`).join('');
+          const eds = SUF.map(() => `<td colspan="3">${editDiv()}</td>`).join('');
+          html += `<table class="sheet spaced block type3-wide"><colgroup>${'<col style="width:26px">'.repeat(27)}</colgroup><tbody>
+            <tr style="--k:.7"><td class="ttl" colspan="27" data-tk="f${f}"></td></tr>
             <tr style="--k:.8">${nums}</tr>
             <tr style="--k:3">${eds}</tr>
           </tbody></table>`;
         });
-        const heads = ['fg', 'f1', 'f2', 'f3', 'f4'].map(k => lbl(k)).join('');
-        const cells = [0, 1, 2, 3, 4].map(() => ed()).join('');
+        // هەر نهۆمێک ٣ ستوونی 26px ی هەیە کە میرج کراون (colspan=3)، ٥ نهۆم × ٣ = ١٥ ستوون
+        const heads = ['fg', 'f1', 'f2', 'f3', 'f4'].map(k => `<td class="lbl" colspan="3" data-tk="${k}"></td>`).join('');
+        const cells = [0, 1, 2, 3, 4].map(() => `<td colspan="3">${editDiv()}</td>`).join('');
         for (let i = 0; i < 5; i++) {
-          html += `<table class="sheet spaced block small"><tbody>
-            <tr style="--k:.7"><td class="tan" colspan="5">${editDiv()}</td></tr>
+          html += `<table class="sheet spaced block small"><colgroup>${'<col style="width:26px">'.repeat(15)}</colgroup><tbody>
+            <tr style="--k:.7"><td class="tan" colspan="15">${editDiv()}</td></tr>
             <tr style="--k:.8">${heads}</tr>
             <tr style="--k:1.2">${cells}</tr>
           </tbody></table>`;
@@ -387,11 +400,12 @@
       function buildPage4() {
         let html = '';
         FLOORS.forEach(f => {
-          let rows = floorTitle(f, 2);
+          let rows = floorTitle(f, 7);
           SUF.forEach(s => {
-            rows += `<tr><td class="roomno">${f}${s}</td><td>${editDiv()}</td></tr>`;
+            // ٦ ستوونی 110px، هەموویان میرج کراون (colspan=6) بۆ یەک خانەی نووسین
+            rows += `<tr><td class="roomno">${f}${s}</td><td colspan="6">${editDiv()}</td></tr>`;
           });
-          html += `<table class="sheet spaced block"><colgroup><col style="width:22mm"><col></colgroup><tbody>${rows}</tbody></table>`;
+          html += `<table class="sheet spaced block type4"><colgroup><col style="width:22mm">${'<col style="width:110px">'.repeat(6)}</colgroup><tbody>${rows}</tbody></table>`;
         });
         return html;
       }
